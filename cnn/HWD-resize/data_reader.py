@@ -52,8 +52,8 @@ class DataReader:
         k = random.randint(0, im_D - self.dim_depth)   
         output_images[:,:,:, 0] = image[k:k+self.dim_depth, i:i+self.dim_patch, j:j+self.dim_patch, 0]
         
-        input_images = utils.resize_3d_image_standard(output_images, int(self.dim_depth/params.scale), int(self.dim_patch / params.scale), int(self.dim_patch / params.scale))
-        output_h_w = utils.resize_depth_3d_image_standard(output_images, int(self.dim_depth/params.scale), output_images.shape[1], output_images.shape[2])
+        input_images = utils.resize_3d_image_standard(output_images, int(self.dim_depth/params.scale), int(self.dim_patch / params.scale), int(self.dim_patch / params.scale), interpolation_method=cv.INTER_NEAREST)
+        output_h_w = utils.resize_depth_3d_image_standard(output_images, int(self.dim_depth/params.scale), output_images.shape[1], output_images.shape[2], interpolation_method=cv.INTER_NEAREST)
         if(self.SHOW_IMAGES):
             for image in output_images: 
                 cv.imshow('output', image/255)

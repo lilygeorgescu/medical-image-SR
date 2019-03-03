@@ -35,7 +35,7 @@ def compute_ssim_psnr_batch(predicted_images, ground_truth_images):
         ssim_sum += ssim(predicted_images[i], ground_truth_images[i])
         psnr_sum += psnr(predicted_images[i], ground_truth_images[i])
         
-    return ssim_sum/num_images, psnr_sum/num_images
+    return ssim_sum, psnr_sum 
      
 def rotate(img, angle):
 

@@ -34,7 +34,7 @@ output_before, features, after_ps = params.network_architecture_D(output_h_w, pa
 output = tf.transpose(output_before, [2, 0, 1, 3])
  
 print('output shape is ', output.shape)
-if(params.LOSS == params.L1_LOSS):
+if(params.LOSS == params.L1_LOSS): # 
 	loss = tf.reduce_mean(tf.abs(output - target)) + tf.reduce_mean(tf.abs(output_h_w_before - target_h_w))
 if(params.LOSS == params.L2_LOSS):
 	loss = tf.reduce_mean(tf.square(output - target)) + tf.reduce_mean(tf.square(output_h_w_before - target_h_w))
@@ -80,7 +80,7 @@ for epoch in range(start_epoch, params.num_epochs):
 	for i in range(0, num_iterations): 
 		 input_, target_, target_h_w_  = data_reader.get_next_batch_train(i) 
 		 num_images += 1 
-		 cost, _, lr, gl, predicted_images, output_h_w_before_, output_before_, output_h_w_, f_, after_ps_, features_h_w_ = sess.run([loss, opt, learning_rate, global_step, output, output_h_w_before, output_before, output_h_w, features, after_ps, features_h_w], feed_dict={input: input_ , target: target_, target_h_w: target_h_w_})  
+		 cost, _, lr, gl, predicted_images, output_h_w_before_, output_before_, output_h_w_, f_, after_ps_, features_h_w_ = sess.run([loss, opt, learning_rate, global_step, output, output_h_w_before, output_before, output_h_w, features, after_ps, features_h_w], feed_dict={input: input_ , target: target_, target_h_w: target_h_w_})   
 		 # pdb.set_trace()
 		 # for index in range(output_h_w_.shape[0]):
 		 	# cv.imshow('hw', output_h_w_[index] / 255)
@@ -93,9 +93,10 @@ for epoch in range(start_epoch, params.num_epochs):
 		 	# cv.imshow('t', target_[index] / 255)
 		 	# cv.imshow('b', output_before_[index] / 255)
 		 	# cv.waitKey(0)
-		 cv.imshow('output_h_w_before_', output_h_w_before_[0] / 255)
-		 cv.imshow('p', predicted_images[0] / 255)
-		 cv.imshow('t', target_[0] / 255)
+		 cv.imshow('i', input_[1] / 255)
+		 cv.imshow('output_h_w_before_', output_h_w_before_[1] / 255)
+		 cv.imshow('p', predicted_images[1] / 255)
+		 cv.imshow('t', target_[1] / 255)
 		 cv.waitKey(1000)
 		 batch_loss += cost * data_reader.dim_depth 
 		 ssim_batch, psnr_batch = utils.compute_ssim_psnr_batch(predicted_images, target_)

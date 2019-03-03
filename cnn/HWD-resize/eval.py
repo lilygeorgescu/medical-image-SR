@@ -46,19 +46,16 @@ def run_network(images, ground_truth, checkpoint_name):
         # resize on height and witdh
         output_h_w_ = np.zeros((images.shape[0], ground_truth.shape[1], ground_truth.shape[2], ground_truth.shape[3]))
         for i in range(images.shape[0]):
-            output_h_w_[i] = sess.run(output_h_w, feed_dict={input: [images[i]]})    
-            
-        # resize on depth    
+            output_h_w_[i] = sess.run(output_h_w, feed_dict={input: [images[i]]})[0]     
+        # resize on depth 
         output_h_w_ = np.transpose(output_h_w_, [1, 2, 0, 3])    
-        output_h_w_d = np.zeros((ground_truth.shape[1], ground_truth.shape[2], ground_truth.shape[0], params.num_channels))
-        for i in range(images.shape[0]):
-            output_h_w_d[i] = sess.run(output, feed_dict={input_depth: [output_h_w_[i]]})  
+        output_h_w_d = np.zeros((ground_truth.shape[1], ground_truth.shape[2], ground_truth.shape[0], params.num_channels)) 
+        for i in range(output_h_w_.shape[0]): 
+            output_h_w_d[i] = sess.run(output, feed_dict={input_depth: [output_h_w_[i]]})[0]   
             
-        output_3d_rezised = np.transpose(output_h_w_d, [2, 0, 1, 3])   
-        
-        cost = sess.run(loss, feed_dict={predicted: output_3d_rezised , target: ground_truth})    
-        
-        ssim_batch, psnr_batch = utils.compute_ssim_psnr_batch(output_3d_rezised, ground_truth) 
+        output_3d_resized = np.transpose(output_h_w_d, [2, 0, 1, 3])    
+        cost = sess.run(loss, feed_dict={predicted: output_3d_resized , target: ground_truth})     
+        ssim_batch, psnr_batch = utils.compute_ssim_psnr_batch(output_3d_resized, ground_truth) 
           
         return cost, ssim_batch, psnr_batch
     
@@ -157,6 +154,6 @@ def run_eval_test(data_reader):
     
 
     
-data_reader = reader.DataReader('./data/train', './data/validation', './data/test', is_training=False)
+data_reader = reader.DataReader('./data/train', './data/train', './data/train', is_training=False)
 eval(data_reader, checkpoint_name='./data_ckpt/model.ckpt49')
 run_eval_test(data_reader)    
