@@ -12,11 +12,12 @@ folder_base_name = '../cnn-3d/3d-images'
 # cv.INTER_LANCZOS4
 # cv.INTER_NEAREST
 interpolation_method = cv.INTER_LANCZOS4 
-num_epochs = 515
+num_epochs = 1001
 LOSS = L1_LOSS
-learning_rate = 1e-4
+learning_rate_h_w = 1e-3    
+learning_rate_d = 1e-3   
 dim_patch = 192
-dim_depth = 32
+dim_depth = 64
 kernel_size = 5 
 image_ext = 'png'
 folder_data = './data_ckpt/'
@@ -41,7 +42,8 @@ def show_params():
 	print('interpolation method = {} '.format(interpolation_method))
 	print('num epochs = {} '.format(num_epochs))
 	print('loss = {} '.format(LOSS))
-	print('learning rate = {} '.format(learning_rate))
+	print('learning rate heigth width = {} '.format(learning_rate_h_w))
+	print('learning rate depth = {} '.format(learning_rate_d))
 	print('dim patch = {} '.format(dim_patch))
 	print('dim depth = {} '.format(dim_depth))
 	print('kernel size = {} '.format(kernel_size))

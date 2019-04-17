@@ -20,12 +20,11 @@ def run_network(images, ground_truth, checkpoint_name):
         images, ground_truth are nd-arrays of size [batch_size(num_images=depth), heigth, width, num_channels]
     '''  
     
-    tf.reset_default_graph() 
-    input = tf.placeholder(tf.float32, (1, images.shape[1], images.shape[2], params.num_channels), name='input') 
-    output_h_w, _ = params.network_architecture_H_W(input, params.kernel_size) 
+    images = np.transpose(images, [1, 2, 0, 3])  
     
-    input_depth = tf.placeholder(tf.float32, (1, ground_truth.shape[2], images.shape[0], params.num_channels), name='input_depth')  
-    output, _, _ = params.network_architecture_D(input_depth, params.kernel_size)   
+    tf.reset_default_graph()   
+    input_depth = tf.placeholder(tf.float32, (1, images.shape[1], images.shape[2], params.num_channels), name='input_depth')  
+    output = params.network_architecture_D(input_depth, params.kernel_size)   
     
     predicted = tf.placeholder(tf.float32, (ground_truth.shape[0], ground_truth.shape[1], ground_truth.shape[2], params.num_channels), name='predicted')
     target = tf.placeholder(tf.float32, (ground_truth.shape[0], ground_truth.shape[1], ground_truth.shape[2], params.num_channels), name='target')
@@ -42,16 +41,10 @@ def run_network(images, ground_truth, checkpoint_name):
         device_count = {'GPU': 1}
     ) 
     with tf.Session(config=config) as sess:    
-        saver.restore(sess, checkpoint_name)
-        # resize on height and witdh
-        output_h_w_ = np.zeros((images.shape[0], ground_truth.shape[1], ground_truth.shape[2], ground_truth.shape[3]))
-        for i in range(images.shape[0]):
-            output_h_w_[i] = sess.run(output_h_w, feed_dict={input: [images[i]]})[0]     
-        # resize on depth 
-        output_h_w_ = np.transpose(output_h_w_, [1, 2, 0, 3])    
-        output_h_w_d = np.zeros((ground_truth.shape[1], ground_truth.shape[2], ground_truth.shape[0], params.num_channels)) 
-        for i in range(output_h_w_.shape[0]): 
-            output_h_w_d[i] = sess.run(output, feed_dict={input_depth: [output_h_w_[i]]})[0]   
+        saver.restore(sess, checkpoint_name) 
+        output_h_w_d = np.zeros((ground_truth.shape[1], ground_truth.shape[2], ground_truth.shape[0], params.num_channels))  
+        for i in range(images.shape[0]): 
+            output_h_w_d[i] = sess.run(output, feed_dict={input_depth: [images[i]]})[0]   
             
         output_3d_resized = np.transpose(output_h_w_d, [2, 0, 1, 3])    
         cost = sess.run(loss, feed_dict={predicted: output_3d_resized , target: ground_truth})     
@@ -147,13 +140,13 @@ def run_eval_test(data_reader):
                 test(data_reader, latest_checkpoint)
                 np.savetxt(params.latest_ckpt_filename, [latest_checkpoint], delimiter=" ", fmt="%s")
         else:
-               # eval(data_reader, latest_checkpoint)
+                eval(data_reader, latest_checkpoint)
                 test(data_reader, latest_checkpoint)
                 np.savetxt(params.latest_ckpt_filename, [latest_checkpoint], delimiter=" ", fmt="%s")            
                 
     
 
     
-data_reader = reader.DataReader('./data/train', './data/train', './data/train', is_training=False)
-#(data_reader, checkpoint_name='./data_ckpt/model.ckpt49')
+data_reader = reader.DataReader('./data/train', './data/validation', './data/test', is_training=False)
+# eval(data_reader, checkpoint_name='./data_ckpt/model.ckpt49')
 run_eval_test(data_reader)    

@@ -41,7 +41,7 @@ class DataReader:
             self.index_train = 0 
             self.train_images = shuffle(self.train_images) 
         input_images = np.zeros((int(self.dim_depth / params.scale), int(self.dim_patch / params.scale), int(self.dim_patch / params.scale), params.num_channels))
-        output_images = np.zeros((self.dim_depth, self.dim_patch, self.dim_patch, params.num_channels))
+        output_images_d = np.zeros((self.dim_depth, self.dim_patch, self.dim_patch, params.num_channels))
        
         image = self.train_images[self.index_train]  
         im_D = image.shape[0]
@@ -50,12 +50,12 @@ class DataReader:
         i = random.randint(0, im_H - self.dim_patch)
         j = random.randint(0, im_W - self.dim_patch)        
         k = random.randint(0, im_D - self.dim_depth)   
-        output_images[:,:,:, 0] = image[k:k+self.dim_depth, i:i+self.dim_patch, j:j+self.dim_patch, 0]
+        output_images_d[:,:,:, 0] = image[k:k+self.dim_depth, i:i+self.dim_patch, j:j+self.dim_patch, 0]
         
-        input_images = utils.resize_3d_image_standard(output_images, int(self.dim_depth/params.scale), int(self.dim_patch / params.scale), int(self.dim_patch / params.scale), interpolation_method=cv.INTER_NEAREST)
-        output_h_w = utils.resize_depth_3d_image_standard(output_images, int(self.dim_depth/params.scale), output_images.shape[1], output_images.shape[2], interpolation_method=cv.INTER_NEAREST)
+        input_images = utils.resize_3d_image_standard(output_images_d, int(self.dim_depth/params.scale), int(self.dim_patch / params.scale), int(self.dim_patch / params.scale), interpolation_method=cv.INTER_NEAREST)
+        output_h_w = utils.resize_depth_3d_image_standard(output_images_d, int(self.dim_depth/params.scale), output_images_d.shape[1], output_images_d.shape[2], interpolation_method=cv.INTER_NEAREST)
         if(self.SHOW_IMAGES):
-            for image in output_images: 
+            for image in output_images_d: 
                 cv.imshow('output', image/255)
                 cv.waitKey(0)
             for image in input_images:
@@ -63,7 +63,7 @@ class DataReader:
                 cv.waitKey(0)
             
         self.index_train += 1
-        return input_images, output_images, output_h_w
+        return input_images, output_images_d, output_h_w
  
 # data_reader = DataReader('./data/train', './data/validation', './data/test', SHOW_IMAGES=True)
 # data_reader.get_next_batch_train(1)

@@ -35,19 +35,17 @@ def compute_ssim_psnr_batch(predicted_images, ground_truth_images):
         ssim_sum += ssim(predicted_images[i], ground_truth_images[i])
         psnr_sum += psnr(predicted_images[i], ground_truth_images[i])
         
-    return ssim_sum, psnr_sum
+    return ssim_sum, psnr_sum 
      
 def rotate(img, angle):
 
 	if(angle == 0):
-		return img
+		return np.squeeze(img)
         
 	num_rows, num_cols = img.shape[:2]
 	rotation_matrix = cv.getRotationMatrix2D((num_cols/2, num_rows/2), angle, 1)
 	img_rotation = cv.warpAffine(img, rotation_matrix, (num_cols, num_rows)) 
-	if(img_rotation.ndim == 2):
-		img_rotation = np.expand_dims(img_rotation, axis = 2)
-        
+    
 	return img_rotation 
     
 def get_output_directory_name(folder_name=params.folder_name):    
@@ -61,7 +59,7 @@ def create_folders(folder_name):
     else:
        print('directory {} exists '.format(directory_name))
 
-def read_all_directory_images_from_directory_test(directory_path):
+def read_all_directory_images_from_directory_as_list(directory_path):
     '''
         This function reads the images from the directory_path (walk in every dir and read images).
         The output is list of nd-array (num_images, height, width, channels).
@@ -70,6 +68,9 @@ def read_all_directory_images_from_directory_test(directory_path):
         print('Error!! Folder base name does not exit')
     folder_images = []
     folder_names = os.listdir(directory_path)
+    min_H = 10000
+    min_W = 10000
+    min_D = 10000
     for folder_name in folder_names:      
         images = []
         images_path = os.path.join(directory_path, folder_name, '*' + params.image_ext) 
@@ -79,7 +80,10 @@ def read_all_directory_images_from_directory_test(directory_path):
         # read the first image to get the size of the images
         image = cv.imread(files[0], cv.IMREAD_GRAYSCALE)
         print('The size of the first image is {}'.format(image.shape))
-        
+        if(image.shape[0] < min_H):
+            min_H = image.shape[0]
+        if(image.shape[1] < min_W):
+            min_W = image.shape[1]
         images.append(np.expand_dims(image, 2))
         for index in range(1, num_images): 
             image = cv.imread(files[index], cv.IMREAD_GRAYSCALE)
@@ -87,9 +91,23 @@ def read_all_directory_images_from_directory_test(directory_path):
             if(SHOW_IMAGES): 
                 cv.imshow('image', image)
                 cv.waitKey(0) 
+        if(len(images) < min_D):
+            min_D = len(images)
+     
         folder_images.append(np.array(images, 'uint8'))
         
-    return folder_images
+    return folder_images, min(min_H, min_W), min_D
+
+
+def read_images_depth_training(directory_path): 
+    image_3d_list, min_H_W, min_D = read_all_directory_images_from_directory_as_list(directory_path)
+    images_list = []
+    for image_3d in image_3d_list:
+        image_3d = np.transpose(image_3d, [1, 2, 0, 3])
+        images_list += list(image_3d)
+    
+    return images_list, min_H_W, min_D
+    
     
 def read_all_directory_images_from_directory(directory_path):
     '''
@@ -132,12 +150,9 @@ def read_all_images_from_directory(images_path):
     '''
         This function reads the images from the directory specified in params.py.
         The output is a numpy ndarray of size (num_images, height, width, channels).
-    ''' 
+    '''
     if not os.path.exists(images_path):
         print('Error!! Folder  name does not exit')  
-    if images_path[-1] != '/':
-        images_path = images_path + '/'
-        
     files = glob.glob(images_path + '*' + params.image_ext) 
     assert len(files) > 0
     num_images = len(files)
@@ -155,45 +170,6 @@ def read_all_images_from_directory(images_path):
             cv.waitKey(0)
         
     return images
-
-def read_all_patches_from_directory(base_dir, folder='', return_np_array=True):
-    '''
-        This function reads the images from the base_dir (walk in every dir named folder and read images).
-        The output is list with nd-array (num_images, height, width, channels) and the minimum btw the min height and min width.
-    '''
-    if not os.path.exists(base_dir):
-        print('Error!! Folder base name does not exit')
-        
-    images = [] 
-    folder_names = os.listdir(base_dir)
-    for folder_name in folder_names:      
-        
-        images_path = os.path.join(base_dir, folder_name, folder, '*' + params.image_ext)  
-        files = glob.glob(images_path)
-        num_images = len(files)
-        print('There are {} images in {}'.format(num_images, images_path))
-        # read the first image to get the size of the images
-        image = cv.imread(files[0], cv.IMREAD_GRAYSCALE)
- 
-            
-        print('The size of the first image is {}'.format(image.shape))
-        
-        images.append(np.expand_dims(image, 2))
-        for index in range(1, num_images): 
-            image = cv.imread(files[index], cv.IMREAD_GRAYSCALE)
-            images.append(np.expand_dims(image, 2))
-            if(SHOW_IMAGES): 
-                cv.imshow('image', image)
-                cv.waitKey(0) 
-    if(not return_np_array):
-        return images
-    return np.array(images) 
-
-
-def resize_height_width_image_standard(image, factor, interpolation_method = cv.INTER_LINEAR):
-    new_width = image.shape[1] * factor
-    new_heigth = image.shape[0] * factor
-    return cv.resize(image, (new_width, new_heigth), interpolation = interpolation_method)
     
 def resize_height_width_3d_image_standard(images, new_heigth, new_width, interpolation_method = cv.INTER_LINEAR):  
     '''
@@ -215,30 +191,28 @@ def resize_height_width_3d_image_standard(images, new_heigth, new_width, interpo
             cv.waitKey(0)  
     
     return resized_images
-    
-def resize_height_width_list_of_3d_image_standard(image_list, scale, interpolation_method = cv.INTER_LINEAR):
-    '''
-        Resize a list of 3d images on each dimensions: depth, height, width. 
-    ''' 
-    new_list = []
-    for item in image_list: 
-        d, h, w = item.shape[:3] 
-        new_list.append(resize_height_width_3d_image_standard(item, int(h * scale), int(w * scale), interpolation_method)) 
-        
-    return new_list   
-    
-def resize_list_of_3d_image_standard(image_list, scale, interpolation_method = cv.INTER_LINEAR):
+
+def resize_list_of_3d_image_standard(images_list, scale, interpolation_method = cv.INTER_LINEAR):
     '''
         Resize a list of 3d images on each dimensions: depth, height, width. 
     '''
     new_list = []
-    for item in image_list: 
+    for item in images_list: 
         d, h, w = item.shape[:3] 
         new_list.append(resize_3d_image_standard(item, int(d * scale),  int(h * scale), int(w * scale), interpolation_method))
         
     return new_list
     
-
+def resize_depth_list_of_3d_image_standard(images_list, scale, interpolation_method = cv.INTER_LINEAR):
+    '''
+        Resize a list of 3d images on depth.
+    '''
+    new_list = []
+    for item in images_list: 
+        d, h, w = item.shape[:3] 
+        new_list.append(resize_depth_3d_image_standard(item, int(d * scale),  h, w, interpolation_method))
+        
+    return np.array(new_list)
     
 def resize_depth_3d_image_standard(images, new_depth, height, width, interpolation_method = cv.INTER_LINEAR):
     '''

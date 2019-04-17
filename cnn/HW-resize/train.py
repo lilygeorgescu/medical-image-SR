@@ -16,28 +16,42 @@ SHOW_IMAGES = False
 IS_RESTORE = tf.train.latest_checkpoint(params.folder_data) != None 
  
 params.show_params()   
-data_reader = reader.DataReader('./data/train', './data/validation', './data/test')
+data_reader = reader.DataReader('./data/train_', './data/validation', './data/test')
    	 
 # training 
-batch_size = 32 
-dim_input = int(data_reader.dim_patch / params.scale)
+batch_size = 64  
+stride = 11
+input = tf.placeholder(tf.float32, (batch_size, data_reader.dim_patch_in,  data_reader.dim_patch_in, params.num_channels), name='input')
+target = tf.placeholder(tf.float32, (batch_size, data_reader.dim_patch_gt - 2*stride, data_reader.dim_patch_gt - 2*stride, params.num_channels), name='target')
 
-input = tf.placeholder(tf.float32, (batch_size, dim_input, dim_input, params.num_channels), name='input')
-target = tf.placeholder(tf.float32, (batch_size, data_reader.dim_patch, data_reader.dim_patch, params.num_channels), name='target')
-
-output = params.network_architecture(input, params.kernel_size) 
-
-print('output shape is ', output.shape)
+output = params.network_architecture(input, params.kernel_size)  
+print('output shape is ', output.shape, target.shape) 
 if(params.LOSS == params.L1_LOSS):
 	loss = tf.reduce_mean(tf.abs(output - target)) 
 if(params.LOSS == params.L2_LOSS):
 	loss = tf.reduce_mean(tf.square(output - target)) 	
 	 
 global_step = tf.Variable(0, trainable=False)
-starter_learning_rate = params.learning_rate 
-learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step,
-                                           500, 0.75, staircase=True)
-opt = tf.train.AdamOptimizer(learning_rate).minimize(loss, global_step=global_step)
+lr = params.learning_rate 
+starter_learning_rate = tf.placeholder(tf.float32, shape=[], name="learning_rate_epoch") 
+
+others = []                                    
+last_layer = []
+for var in tf.global_variables():
+    if(var.name.find('last_layer') != -1):
+        last_layer.append(var)
+    else:
+        others.append(var) 
+        
+opt1 = tf.train.AdamOptimizer(starter_learning_rate)
+opt2 = tf.train.AdamOptimizer(starter_learning_rate / 10)
+grads = tf.gradients(loss, others + last_layer)
+grads1 = grads[:len(others)]
+grads2 = grads[len(others):]
+train_op1 = opt1.apply_gradients(zip(grads1, others))
+train_op2 = opt2.apply_gradients(zip(grads2, last_layer))
+opt = tf.group(train_op1, train_op2)
+# opt = tf.train.AdamOptimizer(learning_rate).minimize(loss, global_step=global_step)
 
 config = tf.ConfigProto(
         device_count = {'GPU': 1}
@@ -64,27 +78,36 @@ if(IS_RESTORE):
     saver.restore(sess,tf.train.latest_checkpoint(params.folder_data))
     start_epoch = re.findall(r'\d+', tf.train.latest_checkpoint(params.folder_data))
     start_epoch = int(start_epoch[0]) + 1
- 
+
+print('the number of images is: ', data_reader.num_train_images)
 for epoch in range(start_epoch, params.num_epochs):
 	batch_loss = 0   
 	num_images = 0 
 	num_iterations = math.floor(data_reader.num_train_images / batch_size) 
-	ssim_epoch = 0
+	print('the number of iterations is %d' % num_iterations)
+	ssim_epoch = 0 
 	psnr_epoch = 0 
 	for i in range(0, num_iterations): 
 		 input_, target_  = data_reader.get_next_batch_train(i, batch_size) 
 		 num_images += batch_size 
-		 cost, _, lr, gl, predicted_images = sess.run([loss, opt, learning_rate, global_step, output], feed_dict={input: input_ , target: target_})
-		 batch_loss += cost * batch_size 
-		 ssim_batch, psnr_batch = utils.compute_ssim_psnr_batch(predicted_images, target_)
+		 target_ = target_[:, stride:-stride, stride:-stride, :]
+		 cost, _, predicted_images = sess.run([loss, opt, output], feed_dict={input: input_ , target: target_, starter_learning_rate: lr})
+		 # pdb.set_trace()
+		 print(predicted_images.min())
+		 print(predicted_images.max()) 
+		 batch_loss += cost * batch_size  
+		 # cv.imshow('p', predicted_images[0])
+		 # cv.imshow('target_', target_[0]) 
+		 # cv.waitKey(0)
+		 ssim_batch, psnr_batch = utils.compute_ssim_psnr_batch(np.round(predicted_images * 255), np.round(target_ * 255))
 		 ssim_epoch += ssim_batch
 		 psnr_epoch += psnr_batch
-		 print("Epoch/Iteration/Global Iteration: {}/{}/{} ...".format(epoch, i, gl),"Training loss: {:.8f}".format(batch_loss/num_images), "Learning rate:  {:.8f}".format(lr))  
+		 print("Epoch/Iteration {}/{} ...".format(epoch, i), "Training loss: {:.8f}".format(batch_loss/num_images), "Learning rate:  {:.8f}".format(lr))  
 		 
 	merged_ = sess.run(merged, feed_dict={total_loss_placeholder: batch_loss/num_images, ssim_placeholder: ssim_epoch/num_images, psnr_placeholder: psnr_epoch/num_images, lr_placeholder : lr } )
 	writer.add_summary(merged_, epoch)
 	print('saving checkpoint...') 
-    
+	lr = lr * 0.75
 	saver.save(sess, params.folder_data + params.ckpt_name + str(epoch))	
 
 sess.close()

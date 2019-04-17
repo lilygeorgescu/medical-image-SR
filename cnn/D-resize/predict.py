@@ -17,17 +17,19 @@ def predict(images=None, path_images=None, write_images=False):
         if(path_images == None):
             raise ValueError('if images is None path_images must not be none.') 
         original_image = utils.read_all_images_from_directory(path_images)   
+        
      
-    # standard resize
-    downscaled_image = utils.resize_3d_image_standard(original_image, int(original_image.shape[0] / scale_factor), int(original_image.shape[1] / scale_factor), int(original_image.shape[2] / scale_factor))
-    standard_resize = utils.resize_3d_image_standard(downscaled_image, int(original_image.shape[0]), int(original_image.shape[1]), int(original_image.shape[2]), interpolation_method = params.interpolation_method)
+    # standard resize 
+    downscaled_image = utils.resize_depth_3d_image_standard(original_image, int(original_image.shape[0] / scale_factor), int(original_image.shape[1]), int(original_image.shape[2]))
+    standard_resize = utils.resize_depth_3d_image_standard(downscaled_image, int(original_image.shape[0]), int(original_image.shape[1]), int(original_image.shape[2]), interpolation_method = params.interpolation_method)
 
-    # cnn resize  
+    # cnn resize 
+    downscaled_image = np.transpose(downscaled_image, [1, 2, 0, 3])     
     input = tf.placeholder(tf.float32, (downscaled_image.shape[0], downscaled_image.shape[1], downscaled_image.shape[2], params.num_channels), name='input')  
-    output = params.network_architecture(input, params.kernel_size) 
+    output = params.network_architecture_D(input, params.kernel_size) 
      
     config = tf.ConfigProto(
-            device_count = {'GPU': 0}
+            device_count = {'GPU': 1}
         ) 
     with tf.Session(config=config) as sess:  
         sess.run(tf.global_variables_initializer())
@@ -36,11 +38,10 @@ def predict(images=None, path_images=None, write_images=False):
         saver.restore(sess, tf.train.latest_checkpoint(params.folder_data))
          
         # step 1 - apply cnn on each resized image, maybe as a batch
-
-        cnn_output = sess.run(output, feed_dict={input: downscaled_image})
-
-        # step 2 - resize the depth with a standard method
-        cnn_output = utils.resize_depth_3d_image_standard(cnn_output, int(original_image.shape[0]), int(original_image.shape[1]), int(original_image.shape[2]), interpolation_method = params.interpolation_method) 
+        
+        
+        cnn_output = sess.run(output, feed_dict={input: downscaled_image}) 
+        cnn_output = np.transpose(cnn_output, [2, 0, 1, 3]) 
           
         print(cnn_output.shape)
         print(standard_resize.shape)
@@ -84,4 +85,4 @@ def predict(images=None, path_images=None, write_images=False):
             utils.write_3d_images(path_images, standard_resize, 'standard')
             
 
-predict(path_images='./data/validation/00001_0007/', write_images=False)
+predict(path_images='./data/validation/00001_0007/', write_images=True)

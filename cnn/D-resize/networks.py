@@ -56,31 +56,31 @@ def SRCNN_late_upscaling_H_W(im, kernel_size, num_layers = params.layers):
     reg = 0.005 
     # first layer  
     
-    output = tf.layers.conv2d(im, filters = 8, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))	
+    output = tf.layers.conv2d(im, filters = 32, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))	
     
-    output = tf.layers.conv2d(output, filters = 8, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))	     
+    output = tf.layers.conv2d(output, filters = 64, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))	     
     
-    output = tf.layers.conv2d(output, filters = 16, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))	  
+    output = tf.layers.conv2d(output, filters = 64, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))	  
     
-    output = tf.layers.conv2d(output, filters = 16, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))  
+    output = tf.layers.conv2d(output, filters = 32, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))  
     
-    feature_map_for_ps = tf.layers.conv2d(output, filters = params.num_channels * (params.scale ** 2), kernel_size = 1, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))  
+    feature_map_for_ps = tf.layers.conv2d(output, filters = params.num_channels * (params.scale ** 2), kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))  
     
     output_ = PS_H_W(feature_map_for_ps, params.scale)
     
-    output_ = tf.layers.conv2d(output_, filters = params.num_channels, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))
+    output_ = tf.layers.conv2d(output_, filters = params.num_channels, kernel_size = 3, strides = 1, padding='SAME', activation = None, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))
     
-    return output_
+    return output_, feature_map_for_ps
     
 def SRCNN_late_upscaling_D(im, kernel_size, num_layers = params.layers): 
     reg = 0.005 
     # first layer  
     
-    output = tf.layers.conv2d(im, filters = 8, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))
+    output = tf.layers.conv2d(im, filters = 16, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))
     
-    output = tf.layers.conv2d(output, filters = 8, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))	   
+    output = tf.layers.conv2d(output, filters = 32, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))	   
     
-    output = tf.layers.conv2d(output, filters = 16, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))	 
+    output = tf.layers.conv2d(output, filters = 32, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))	 
     
     output = tf.layers.conv2d(output, filters = 16, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))
   
@@ -88,6 +88,6 @@ def SRCNN_late_upscaling_D(im, kernel_size, num_layers = params.layers):
     
     output__ = PS_D(feature_map_for_ps, params.scale)
     
-    output_ = tf.layers.conv2d(output__, filters = params.num_channels, kernel_size = 3, strides = 1, padding='SAME', activation = tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg))
+    output_ = tf.layers.conv2d(output__, filters = params.num_channels, kernel_size = 3, strides = 1, padding='SAME', activation=tf.nn.relu, kernel_regularizer = tf.contrib.layers.l2_regularizer(scale=reg)) 
     
-    return output_ 
+    return output_

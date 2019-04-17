@@ -26,10 +26,10 @@ def predict(images=None, path_images=None, write_images=False, compare_with_grou
         downscaled_image = original_image
         
     input = tf.placeholder(tf.float32, (1, downscaled_image.shape[1], downscaled_image.shape[2], params.num_channels), name='input') 
-    output_h_w, _ = params.network_architecture_H_W(input, params.kernel_size) 
+    output_h_w = params.network_architecture_H_W(input, params.kernel_size) 
     
     input_depth = tf.placeholder(tf.float32, (1, int(downscaled_image.shape[2] * params.scale), downscaled_image.shape[0], params.num_channels), name='input_depth')  
-    output, _, _ = params.network_architecture_D(input_depth, params.kernel_size)   
+    output = params.network_architecture_D(input_depth, params.kernel_size)   
     
     predicted = tf.placeholder(tf.float32, (original_image.shape[0], original_image.shape[1], original_image.shape[2], params.num_channels), name='predicted') 
     # loss computed based on the original 3d image and the 3d image  
