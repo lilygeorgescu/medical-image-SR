@@ -21,11 +21,11 @@ def predict(downscaled_image=None, original_image=None, path_images=None, path_o
     # standard resize
     downscaled_image = utils.read_all_images_from_directory(path_images) # utils.resize_height_width_3d_image_standard(original_image, int(original_image.shape[1] / scale_factor), int(original_image.shape[2] / scale_factor))
     standard_resize = utils.resize_height_width_3d_image_standard(downscaled_image, int(original_image.shape[1]), int(original_image.shape[2]), interpolation_method = params.interpolation_method)
-    downscaled_image = downscaled_image / 255  
+    downscaled_image = downscaled_image
     downscaled_image = downscaled_image - mean
     # cnn resize  
     input = tf.placeholder(tf.float32, (1, downscaled_image.shape[1], downscaled_image.shape[2], params.num_channels), name='input')  
-    output = params.network_architecture(input, params.kernel_size) 
+    output = params.network_architecture(input) 
      
     config = tf.ConfigProto(
             device_count = {'GPU': 1}
@@ -44,44 +44,26 @@ def predict(downscaled_image=None, original_image=None, path_images=None, path_o
         cnn_output = np.array(cnn_output)  
         print(cnn_output.shape)
         print(standard_resize.shape)
-        cnn_output = np.round(cnn_output * 255) 
-        ## eval
-        if(params.tf_version >= 1.10):
-            original = tf.placeholder(tf.float32, (None, None, None, 1), name='input') 
-            reconstructed = tf.placeholder(tf.float32, (None, None, None, 1), name='input') 
-
-            psnr = tf.image.psnr(original, reconstructed, max_val = 255)
-            ssim = tf.image.ssim_multiscale(original, reconstructed, max_val = 255)
-          
-        num_images = cnn_output.shape[0]
-        sum_ssim_standard = 0
-        sum_ssim_cnn = 0
-        sum_psnr_standard = 0
-        sum_psnr_cnn = 0
-        stride = 11
-        for index in range(num_images): 
-           if(params.tf_version >= 1.10):
-                [psnr_standard, ssim_standard] = sess.run([psnr, ssim], feed_dict={original: [original_image[index, :, :]], reconstructed: [standard_resize[index, :, :]]})
-                [psnr_cnn, ssim_cnn] = sess.run([psnr,ssim], feed_dict={original: [original_image[index, :, :]], reconstructed: [cnn_output[index, :, :]]})
-           else:
-                psnr_standard = utils.psnr(original_image[index, :, :], standard_resize[index, :, :])
-                ssim_standard = utils.ssim(original_image[index, :, :], standard_resize[index, :, :]) 
-                psnr_cnn = utils.psnr(original_image[index, stride:-stride, stride:-stride], cnn_output[index, :, :])
-                ssim_cnn = utils.ssim(original_image[index, stride:-stride, stride:-stride], cnn_output[index, :, :]) 
-                
-           sum_ssim_cnn += ssim_cnn
-           sum_psnr_cnn += psnr_cnn
-           sum_ssim_standard += ssim_standard
-           sum_psnr_standard += psnr_standard
-           
-        print('standard --- psnr = {} ssim = {}'.format(sum_psnr_standard, sum_ssim_standard)) 
-        print('cnn --- psnr = {} ssim = {}'.format(sum_psnr_cnn, sum_ssim_cnn)) 
-        print('standard --- psnr = {} ssim = {}'.format(sum_psnr_standard / num_images, sum_ssim_standard / num_images)) 
-        print('cnn --- psnr = {} ssim = {}'.format(sum_psnr_cnn / num_images, sum_ssim_cnn / num_images))  
+        cnn_output = np.round(cnn_output) 
+ 
+ 
+        stride = None
+        
+        ssim_cnn, psnr_cnn = utils.compute_ssim_psnr(cnn_output, original_image, stride=stride)
+        ssim_standard, psnr_standard = utils.compute_ssim_psnr(standard_resize, original_image, stride=stride)
+        
+        print('standard --- psnr = {} ssim = {}'.format(psnr_standard, ssim_standard)) 
+        print('cnn --- psnr = {} ssim = {}'.format(psnr_cnn, ssim_cnn))  
         
         if(write_images and path_images != None):
             utils.write_3d_images(path_images, cnn_output, 'cnn')
             utils.write_3d_images(path_images, standard_resize, 'standard')
             
 
-predict(path_images='./data/train_/00001_0002/input_', path_original_images='./data/train_/00001_0002/', write_images=True)
+predict(path_images='./data/test/00001_0009/input', path_original_images='./data/test/00001_0009/', write_images=True)
+tf.reset_default_graph()
+predict(path_images='./data/test/00001_0010/input', path_original_images='./data/test/00001_0010/', write_images=False)
+tf.reset_default_graph()
+predict(path_images='./data/test/00001_0011/input', path_original_images='./data/test/00001_0011/', write_images=False)
+tf.reset_default_graph()
+predict(path_images='./data/train/00001_0003/input_', path_original_images='./data/train/00001_0003/', write_images=True)  

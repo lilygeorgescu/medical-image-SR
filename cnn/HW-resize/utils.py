@@ -10,7 +10,7 @@ import math
 import pdb
 
 SHOW_IMAGES = False
-
+ 
 def psnr(img1, img2):
     img1 = np.uint8(img1)
     img2 = np.uint8(img2)
@@ -20,12 +20,12 @@ def psnr(img1, img2):
     PIXEL_MAX = 255.0
     return 20 * math.log10(PIXEL_MAX / math.sqrt(mse))
     
-def ssim(img1, img2): 
+def ssim(img1, img2):  
     img1 = np.uint8(img1)
     img2 = np.uint8(img2)
     if(img1.shape[2] == 1):
-        return ssim_sk(np.squeeze(img1), np.squeeze(img2))
-    return ssim_sk(img1, img2)
+        return ssim_sk(np.squeeze(img1), np.squeeze(img2), win_size=5)
+    return ssim_sk(img1, img2, win_size=5)
     
 def compute_ssim_psnr_batch(predicted_images, ground_truth_images):
     num_images = predicted_images.shape[0]
@@ -36,7 +36,51 @@ def compute_ssim_psnr_batch(predicted_images, ground_truth_images):
         psnr_sum += psnr(predicted_images[i], ground_truth_images[i])
         
     return ssim_sum, psnr_sum
-     
+
+def compute_ssim_psnr(predicted_images, original_images, stride=None):
+    
+    if(stride is not None):
+        original_images = original_images[:, stride:-stride, stride:-stride, :].copy()
+        
+    if(stride is not None and original_images.shape != predicted_images.shape):
+        predicted_images = predicted_images[:, stride:-stride, stride:-stride, :].copy()
+    
+    num_images = original_images.shape[0]
+    sum_ssim = 0
+    sum_psnr = 0
+    for index in range(num_images):  
+        psnr_value = psnr(original_images[index], predicted_images[index])
+        ssim_value = ssim(original_images[index], predicted_images[index])  
+        
+        sum_ssim += ssim_value
+        sum_psnr += psnr_value 
+    
+    return sum_ssim / num_images, sum_psnr / num_images
+    
+def rotate_image_90(image):
+    return np.rot90(image.copy())
+
+def rotate_image_180(image):
+    return rotate_image_90(rotate_image_90(image))
+
+def rotate_image_270(image):
+    return rotate_image_90(rotate_image_90(rotate_image_90(image)))
+    
+def reverse_rotate_image_90(image):
+    return rotate_image_270(image)
+    
+def reverse_rotate_image_180(image):
+    return rotate_image_180(image)
+
+def reverse_rotate_image_270(image):
+    return rotate_image_90(image)
+ 
+def flip_image(image):
+    return np.fliplr(image.copy())
+    
+def reverse_flip_image(image):
+    return flip_image(image)
+    
 def rotate(img, angle):
 
 	if(angle == 0):
@@ -128,7 +172,7 @@ def read_all_directory_images_from_directory(directory_path):
                 
     return images, min(min_H, min_W)
        
-def read_all_images_from_directory(images_path):
+def read_all_images_from_directory(images_path, return_np_array=True):
     '''
         This function reads the images from the directory specified in params.py.
         The output is a numpy ndarray of size (num_images, height, width, channels).
@@ -145,16 +189,20 @@ def read_all_images_from_directory(images_path):
     # read the first image to get the size of the images
     image = cv.imread(files[0], cv.IMREAD_GRAYSCALE)
     print('The size of the first image is {}'.format(image.shape))
-    images = np.zeros((num_images, image.shape[0], image.shape[1], 1), 'uint8')
-    images[0, :, :, 0] = image
+    images = []
+    
+    images.append(np.expand_dims(image, 2))
     for index in range(1, num_images): 
         image = cv.imread(files[index], cv.IMREAD_GRAYSCALE)
-        images[index, :, :, 0] = image 
+        images.append(np.expand_dims(image, 2))
         if(SHOW_IMAGES): 
             cv.imshow('image', image)
             cv.waitKey(0)
         
-    return images
+    if(not return_np_array):
+        return images
+        
+    return np.array(images) 
 
 def read_all_patches_from_directory(base_dir, folder='', return_np_array=True):
     '''
