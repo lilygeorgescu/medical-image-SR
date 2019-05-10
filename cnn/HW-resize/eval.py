@@ -1,172 +1,105 @@
 import tensorflow as tf
 import numpy as np
-import cv2 as cv
-import random
-import math
-from sklearn.utils import shuffle
+import cv2 as cv 
+import params
+import utils
 import pdb
 import re
-import data_reader as reader
-import time
-import os
+import os 
 
+params.show_params()
 
-import networks as nets
-import utils
-import params
-
-# def run_network(images, ground_truth, checkpoint_name):
-    # '''
-        # images, ground_truth are nd-arrays of size [batch_size(num_images=depth), heigth, width, num_channels]
-    # '''  
-    
-    # tf.reset_default_graph()
-    
-    # placeholders, input image and ground truth
-    # input = tf.placeholder(tf.float32, (1, images.shape[1], images.shape[2], params.num_channels), name='input')
-    # target = tf.placeholder(tf.float32, (ground_truth.shape[0], ground_truth.shape[1], ground_truth.shape[2], params.num_channels), name='target')
-    # output = params.network_architecture(input, params.kernel_size)  
-    
-    # placeholder for the 3D reconstructed image
-    # output_3d_rezised_ph = tf.placeholder(tf.float32, (ground_truth.shape[0], ground_truth.shape[1], ground_truth.shape[2], params.num_channels), name='target')
-    
-    # loss computed based on the original 3d image and the 3d image computed by resizing the image on height and width with nn and on depth with a standard method
-    # if(params.LOSS == params.L1_LOSS):
-        # loss = tf.reduce_mean(tf.abs(output_3d_rezised_ph - target)) 
-    # if(params.LOSS == params.L2_LOSS):
-        # loss = tf.reduce_mean(tf.square(output_3d_rezised_ph - target))
-    # restore values
-    # saver = tf.train.Saver()
-    
-    # config = tf.ConfigProto(
-        # device_count = {'GPU': 1}
-    # ) 
-    # stride = 10
-    # with tf.Session(config=config) as sess:    
-        # saver.restore(sess, checkpoint_name)
-        # resize on height and witdh
-        # output_ = np.zeros((ground_truth.shape[0], ground_truth.shape[1], ground_truth.shape[2], params.num_channels))
-        # for i in range(images.shape[0]):
-            # output_[i] = sess.run(output, feed_dict={input: [images[i]]})   
-        # resize the image on depth with a standard method
-        # output_3d_rezised = utils.resize_depth_3d_image_standard(output_, ground_truth.shape[0], ground_truth.shape[1], ground_truth.shape[2], interpolation_method = params.interpolation_method)
-        # cost = sess.run(loss, feed_dict={output_3d_rezised_ph: output_3d_rezised, target: ground_truth[:, stride:-stride, stride:-stride, :]})
-        
-        # ssim_batch, psnr_batch = utils.compute_ssim_psnr_batch(output_3d_rezised, ground_truth[:, stride:-stride, stride:-stride, :]) 
-          
-        # return cost, ssim_batch, psnr_batch
-    
-def run_network(images, ground_truth, checkpoint_name):
-    '''
-        images, ground_truth are nd-arrays of size [batch_size(num_images=depth), heigth, width, num_channels]
-    '''  
-    
-    tf.reset_default_graph()
-    stride = 10
-    # placeholders, input image and ground truth 
-    input = tf.placeholder(tf.float32, (1, images.shape[1], images.shape[2], params.num_channels), name='input')
-    target = tf.placeholder(tf.float32, (1, ground_truth.shape[1] - 2*stride, ground_truth.shape[2] - 2*stride, params.num_channels), name='target')
-    output = params.network_architecture(input, params.kernel_size)  
-      
-    # loss computed based on the original 3d image and the 3d image computed by resizing the image on height and width with nn and on depth with a standard method
-    if(params.LOSS == params.L1_LOSS):
-        loss = tf.reduce_mean(tf.abs(output - target)) 
-    if(params.LOSS == params.L2_LOSS):
-        loss = tf.reduce_mean(tf.square(output - target))
-    # restore values
-    saver = tf.train.Saver()
-    
-    config = tf.ConfigProto(
+config = tf.ConfigProto(
         device_count = {'GPU': 1}
     ) 
     
-    with tf.Session(config=config) as sess:    
-        saver.restore(sess, checkpoint_name) 
-        all_cost = 0
-        ssim_batch = 0
-        psnr_batch = 0
-        num_images = len(images)
-        for idx_img in range(num_images):
-            gt_image = ground_truth[idx_img][stride:-stride, stride:-stride, :]
-            output_, cost = sess.run([output, loss], feed_dict={input:[images[idx_img]], target: [gt_image]})      
-            all_cost += cost 
-            ssim, psnr = utils.compute_ssim_psnr_batch(output_, [gt_image]) 
-            ssim_batch += ssim
-            psnr_batch += psnr
+def predict(downscaled_image, original_image, checkpoint):
+    scale_factor = params.scale   
+     
             
-        return cost, ssim_batch, psnr_batch  
+    standard_resize = utils.resize_height_width_3d_image_standard(downscaled_image, int(original_image.shape[1]), int(original_image.shape[2]), interpolation_method = params.interpolation_method)
+    downscaled_image = downscaled_image 
+    
+    # cnn resize  
+    input = tf.placeholder(tf.float32, (1, downscaled_image.shape[1], downscaled_image.shape[2], params.num_channels), name='input')  
+    output = params.network_architecture(input) 
+     
+
+    with tf.Session(config=config) as sess:  
+        sess.run(tf.global_variables_initializer())
+        saver = tf.train.Saver()
+        print('restoring from ' + checkpoint)
+        saver.restore(sess, checkpoint)
+         
+        # step 1 - apply cnn on each resized image, maybe as a batch 
+        cnn_output = []
+        for image in downscaled_image: 
+            cnn_output.append(sess.run(output, feed_dict={input: [image]})[0])
+    
+        cnn_output = np.array(cnn_output)   
+        cnn_output = np.round(cnn_output) 
+        cnn_output[cnn_output > 255] = 255
+   
+        ssim_cnn, psnr_cnn = utils.compute_ssim_psnr_batch(cnn_output, original_image)
+        ssim_standard, psnr_standard = utils.compute_ssim_psnr_batch(standard_resize, original_image)
   
-def eval(data_reader, checkpoint_name=tf.train.latest_checkpoint(params.folder_data)): 
-     
-    num_images = len(data_reader.eval_images)
-    epoch = int(re.findall(r'\d+', checkpoint_name)[0])
+        return ssim_cnn, psnr_cnn, ssim_standard, psnr_standard 
+
+def read_images(test_path):
+
+    test_images_gt = utils.read_all_directory_images_from_directory_test(test_path)
+    test_images = utils.read_all_directory_images_from_directory_test(test_path, add_to_path='input')
+    
+    return test_images_gt, test_images
+    
+def compute_performance_indeces(test_path, test_images_gt, test_images, checkpoint):
+
+    num_images = 0 
+    ssim_cnn_sum = 0; psnr_cnn_sum = 0; ssim_standard_sum = 0; psnr_standard_sum = 0;  
  
-    cost, ssim, psnr = run_network(data_reader.eval_images, data_reader.eval_images_gt, checkpoint_name)
-       
-    print(ssim, psnr, psnr)       
-
-    tf.summary.scalar('loss', cost/num_images)  
-    tf.summary.scalar('ssim', ssim/num_images)  
-    tf.summary.scalar('psnr', psnr/num_images)  
-    merged = tf.summary.merge_all()
-    config = tf.ConfigProto( device_count = {'GPU': 1}  ) 
-    with tf.Session(config=config) as sess:
-        writer = tf.summary.FileWriter('eval.log')
-        merged_ = sess.run(merged)
-        writer.add_summary(merged_, epoch)     
-        
-    print('eval---epoch: {} loss: {} ssim: {} psnr: {} '.format(epoch, cost/num_images, ssim/num_images, psnr/num_images))
+    for index in range(len(test_images)):
+        # pdb.set_trace()
+        ssim_cnn, psnr_cnn, ssim_standard, psnr_standard = predict(test_images[index], test_images_gt[index], checkpoint)
+        tf.reset_default_graph()
+        ssim_cnn_sum += ssim_cnn; psnr_cnn_sum += psnr_cnn 
+        ssim_standard_sum += ssim_standard; psnr_standard_sum += psnr_standard 
+        num_images += test_images[index].shape[0]
      
+    print('standard {} --- psnr = {} ssim = {}'.format(test_path, psnr_standard_sum/num_images, ssim_standard_sum/num_images)) 
+    print('cnn {} --- psnr = {} ssim = {}'.format(test_path, psnr_cnn_sum/num_images, ssim_cnn_sum/num_images))
     
-def test(data_reader, checkpoint_name=tf.train.latest_checkpoint(params.folder_data)): 
-     
-    num_images = len(data_reader.test_images)
-    epoch = int(re.findall(r'\d+', checkpoint_name)[0]) 
-    
-    cost, ssim, psnr = run_network(data_reader.test_images, data_reader.test_images_gt, checkpoint_name)
-       
-    print(ssim, psnr, psnr)       
-    tf.summary.scalar('loss', cost/num_images)  
-    tf.summary.scalar('ssim', ssim/num_images)  
-    tf.summary.scalar('psnr', psnr/num_images)  
+    tf.summary.scalar('psnr_standard', psnr_standard_sum/num_images) 
+    tf.summary.scalar('psnr_cnn', psnr_cnn_sum/num_images)  
+    tf.summary.scalar('ssim_standard', ssim_standard_sum/num_images)  
+    tf.summary.scalar('ssim_cnn', ssim_cnn_sum/num_images)  
     merged = tf.summary.merge_all()
-    config = tf.ConfigProto(
-        device_count = {'GPU': 1}
-    ) 
-    with tf.Session(config=config) as sess:
+    
+    if test_path.find('test') != -1:
         writer = tf.summary.FileWriter('test.log')
-        merged_ = sess.run(merged)
-        writer.add_summary(merged_, epoch)    
+    else:
+        writer = tf.summary.FileWriter('eval.log')
         
-    print('test---epoch: {} loss: {} ssim: {} psnr: {} '.format(epoch, cost/num_images, ssim/num_images, psnr/num_images))
-     
-
-
-def run_eval_test(data_reader):
-    while(True):
-        latest_checkpoint = tf.train.latest_checkpoint(params.folder_data)
-        if(latest_checkpoint == None):
-            print('sleeping for 60 sec')
-            time.sleep(60)
-            continue
-        # check if it was already tested
-        if(os.path.isfile(params.latest_ckpt_filename)):
-            latest_checkpoint_tested = np.loadtxt(params.latest_ckpt_filename, dtype="str")
-            if(latest_checkpoint_tested == latest_checkpoint):
-                print('sleeping for 60 sec')
-                time.sleep(60)
-            else:
-                eval(data_reader, latest_checkpoint)
-                test(data_reader, latest_checkpoint)
-                np.savetxt(params.latest_ckpt_filename, [latest_checkpoint], delimiter=" ", fmt="%s")
-        else:
-                eval(data_reader, latest_checkpoint)
-                test(data_reader, latest_checkpoint)
-                np.savetxt(params.latest_ckpt_filename, [latest_checkpoint], delimiter=" ", fmt="%s")            
-                
+    epoch = re.findall(r'\d+', checkpoint)
+    epoch = int(epoch[0])
     
+    with tf.Session(config=config) as sess:
+        merged_ = sess.run(merged)
+        writer.add_summary(merged_, epoch)
+        
+test_path = './data/test'
+eval_path = './data/validation'
 
+test_images_gt, test_images = read_images(test_path)
+eval_images_gt, eval_images = read_images(eval_path)
+
+# checkpoint = tf.train.latest_checkpoint(params.folder_data)  
+# compute_performance_indeces(test_path, test_images_gt, test_images, checkpoint)
+# compute_performance_indeces(eval_path, eval_images, eval_images_gt, checkpoint)  
+
+
+for i in range(95, 110):
+    checkpoint = os.path.join(params.folder_data, 'model.ckpt%d' % i)
     
-data_reader = reader.DataReader('./data/train', './data/validation', './data/test', is_training=False)
-# eval(data_reader, checkpoint_name='./data_ckpt/model.ckpt49')
-run_eval_test(data_reader)    
+    compute_performance_indeces(test_path, test_images_gt, test_images, checkpoint)
+    # compute_performance_indeces(eval_path, eval_images_gt, eval_images, checkpoint)  
+ 

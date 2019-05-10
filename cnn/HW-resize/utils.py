@@ -24,8 +24,8 @@ def ssim(img1, img2):
     img1 = np.uint8(img1)
     img2 = np.uint8(img2)
     if(img1.shape[2] == 1):
-        return ssim_sk(np.squeeze(img1), np.squeeze(img2), win_size=5)
-    return ssim_sk(img1, img2, win_size=5)
+        return ssim_sk(np.squeeze(img1), np.squeeze(img2))
+    return ssim_sk(img1, img2)
     
 def compute_ssim_psnr_batch(predicted_images, ground_truth_images):
     num_images = predicted_images.shape[0]
@@ -105,7 +105,7 @@ def create_folders(folder_name):
     else:
        print('directory {} exists '.format(directory_name))
 
-def read_all_directory_images_from_directory_test(directory_path):
+def read_all_directory_images_from_directory_test(directory_path, add_to_path=None):
     '''
         This function reads the images from the directory_path (walk in every dir and read images).
         The output is list of nd-array (num_images, height, width, channels).
@@ -116,7 +116,12 @@ def read_all_directory_images_from_directory_test(directory_path):
     folder_names = os.listdir(directory_path)
     for folder_name in folder_names:      
         images = []
-        images_path = os.path.join(directory_path, folder_name, '*' + params.image_ext) 
+        
+        if add_to_path is None:
+            images_path = os.path.join(directory_path, folder_name, '*' + params.image_ext) 
+        else:
+            images_path = os.path.join(directory_path, folder_name, add_to_path, '*' + params.image_ext) 
+            
         files = glob.glob(images_path)
         num_images = len(files)
         print('There are {} images in {}'.format(num_images, images_path))
@@ -233,8 +238,10 @@ def read_all_patches_from_directory(base_dir, folder='', return_np_array=True):
             if(SHOW_IMAGES): 
                 cv.imshow('image', image)
                 cv.waitKey(0) 
+                
     if(not return_np_array):
         return images
+        
     return np.array(images) 
 
 

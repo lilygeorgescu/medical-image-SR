@@ -2,38 +2,29 @@ from utils import *
 import params
 import tensorflow as tf
 import pdb
-import cv2 as cv
+import cv2 as cv 
 
-def predict(downscaled_image=None, original_image=None, path_images=None, path_original_images=None):
-  
-    if path_images is None and downscaled_image is None:
-            raise ValueError('if images is None path_images must not be none.') 
-    if path_original_images is None and original_image is None:
-            raise ValueError('if path_original_images is None original_image must not be none.')
-            
-    if original_image is None:
-        original_image = read_all_images_from_directory(path_original_images)
-     
-    mean = np.loadtxt('mean.txt')
-    if downscaled_image is None:
-        downscaled_image = read_all_images_from_directory(path_images)
-    downscaled_image = downscaled_image / 255  
-    downscaled_image = downscaled_image - mean
-    
+def predict(downscaled_image, original_image, checkpoint):
+ 
     # network for original image
     config = tf.ConfigProto(
-            device_count = {'GPU': 0}
+            device_count = {'GPU': 1}
         ) 
     
     sess_or = tf.Session(config=config)
     with sess_or:
         input_or = tf.placeholder(tf.float32, (1, downscaled_image.shape[1], downscaled_image.shape[2], params.num_channels), name='input_or')  
         output_or = params.network_architecture(input_or) 
-    # pdb.set_trace()    
+        
     sess_tr = tf.Session(config=config)
-    # with sess_tr:
-        # input_tr = tf.placeholder(tf.float32, (1, downscaled_image.shape[2], downscaled_image.shape[1], params.num_channels), name='input_tr')  
-        # output_tr = params.network_architecture(input_tr, reuse=True)     
+    with sess_tr:
+        input_tr = tf.placeholder(tf.float32, (1, downscaled_image.shape[2], downscaled_image.shape[1], params.num_channels), name='input_tr')  
+        output_tr = params.network_architecture(input_tr, reuse=True)     
+     
+    saver = tf.train.Saver()
+    print('restoring from ' + checkpoint)
+    saver.restore(sess_or, checkpoint)
+    saver.restore(sess_tr, checkpoint)
     
     num_images = downscaled_image.shape[0]
     cnn_output = []
@@ -54,7 +45,7 @@ def predict(downscaled_image=None, original_image=None, path_images=None, path_o
         out_images.append(reverse_rotate_image_90(res)) 
         
         # flip 90 
-        res = sess_tr.run(output_tr, {input_or: [flip_image(rot90_image)]})[0]
+        res = sess_tr.run(output_tr, {input_tr: [flip_image(rot90_image)]})[0]
         out_images.append(reverse_rotate_image_90(reverse_flip_image(res)))   
 
         # original 180
@@ -75,14 +66,39 @@ def predict(downscaled_image=None, original_image=None, path_images=None, path_o
         res = sess_tr.run(output_tr, {input_tr: [flip_image(rot270_image)]})[0]
         out_images.append(reverse_rotate_image_270(reverse_flip_image(res)))           
         
-        cnn_output.append(np.mean(np.array(out_images), axis=0))
-        # cnn_output.append(np.median(np.array(out_images), axis=0))
-    ssim_cnn, psnr_cnn = utils.compute_ssim_psnr(cnn_output, original_image, stride=stride) 
+        # cnn_output.append(np.mean(np.array(out_images), axis=0))
+        cnn_output.append(np.median(np.array(out_images), axis=0))
+        
+    cnn_output = np.array(cnn_output)
+    ssim_cnn, psnr_cnn = compute_ssim_psnr_batch(cnn_output, original_image) 
  
-    print('cnn --- psnr = {} ssim = {}'.format(psnr_cnn, ssim_cnn))  
+    return ssim_cnn, psnr_cnn
+ 
+def compute_performance_indeces(test_images_gt, test_images, checkpoint):
 
-    if(path_images != None):
-        write_3d_images(path_images, cnn_output, 'cnn')
-        
-        
-predict(path_images='./data/train_/set5/input_', path_original_images='./data/train_/set5/') 
+    num_images = 0 
+    ssim_cnn_sum = 0; psnr_cnn_sum = 0; ssim_standard_sum = 0; psnr_standard_sum = 0;  
+ 
+    for index in range(len(test_images)):
+        # pdb.set_trace()
+        ssim_cnn, psnr_cnn = predict(test_images[index], test_images_gt[index], checkpoint)
+        tf.reset_default_graph()
+        ssim_cnn_sum += ssim_cnn; psnr_cnn_sum += psnr_cnn  
+        num_images += test_images[index].shape[0]
+      
+    print('cnn {} --- psnr = {} ssim = {}'.format(test_path, psnr_cnn_sum/num_images, ssim_cnn_sum/num_images))
+
+def read_images(test_path):
+
+    test_images_gt = read_all_directory_images_from_directory_test(test_path)
+    test_images = read_all_directory_images_from_directory_test(test_path, add_to_path='input')
+    
+    return test_images_gt, test_images
+    
+checkpoint = tf.train.latest_checkpoint(params.folder_data)    
+# checkpoint = './data_ckpt/model.ckpt99'
+
+test_path = './data/test'  
+test_images_gt, test_images = read_images(test_path)    
+ 
+compute_performance_indeces(test_images_gt, test_images, checkpoint) 

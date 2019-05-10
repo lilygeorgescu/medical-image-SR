@@ -44,7 +44,7 @@ for var in tf.global_variables():
         others.append(var) 
         
 opt1 = tf.train.AdamOptimizer(starter_learning_rate)
-opt2 = tf.train.AdamOptimizer(starter_learning_rate/10)
+opt2 = tf.train.AdamOptimizer(starter_learning_rate/2)
 grads = tf.gradients(loss, others + last_layer)
 grads1 = grads[:len(others)]
 grads2 = grads[len(others):]

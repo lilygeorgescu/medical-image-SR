@@ -45,7 +45,7 @@ def predict(downscaled_image=None, original_image=None, path_images=None, path_o
         print(cnn_output.shape)
         print(standard_resize.shape)
         cnn_output = np.round(cnn_output) 
- 
+        cnn_output[cnn_output > 255] = 255
  
         stride = None
         
@@ -59,11 +59,46 @@ def predict(downscaled_image=None, original_image=None, path_images=None, path_o
             utils.write_3d_images(path_images, cnn_output, 'cnn')
             utils.write_3d_images(path_images, standard_resize, 'standard')
             
+        return ssim_cnn, psnr_cnn, ssim_standard, psnr_standard, cnn_output.shape[0]
 
-predict(path_images='./data/test/00001_0009/input', path_original_images='./data/test/00001_0009/', write_images=True)
+        
+        
+
+# predict(path_images='./data/validation/00001_0007/input', path_original_images='./data/validation/00001_0007/', write_images=True)   
+# tf.reset_default_graph()
+# predict(path_images='./data/validation/00001_0008/input', path_original_images='./data/validation/00001_0008/', write_images=True)  
+# exit()
+
+ssim_cnn_sum = 0; psnr_cnn_sum = 0; ssim_standard_sum = 0; psnr_standard_sum = 0; num_im_all = 0  
+ssim_cnn, psnr_cnn, ssim_standard, psnr_standard, num_images = predict(path_images='./data/test/00001_0009/input', path_original_images='./data/test/00001_0009/', write_images=True)
+ssim_cnn_sum += ssim_cnn * num_images; psnr_cnn_sum += psnr_cnn * num_images;
+ssim_standard_sum += ssim_standard * num_images; psnr_standard_sum += psnr_standard * num_images; 
+num_im_all += num_images
+
 tf.reset_default_graph()
-predict(path_images='./data/test/00001_0010/input', path_original_images='./data/test/00001_0010/', write_images=False)
+
+ssim_cnn, psnr_cnn, ssim_standard, psnr_standard, num_images = predict(path_images='./data/test/00001_0010/input', path_original_images='./data/test/00001_0010/', write_images=False)
+ssim_cnn_sum += ssim_cnn * num_images; psnr_cnn_sum += psnr_cnn * num_images;
+ssim_standard_sum += ssim_standard * num_images; psnr_standard_sum += psnr_standard * num_images; 
+num_im_all += num_images
+
 tf.reset_default_graph()
-predict(path_images='./data/test/00001_0011/input', path_original_images='./data/test/00001_0011/', write_images=False)
-tf.reset_default_graph()
-predict(path_images='./data/train/00001_0003/input_', path_original_images='./data/train/00001_0003/', write_images=True)  
+
+ssim_cnn, psnr_cnn, ssim_standard, psnr_standard, num_images= predict(path_images='./data/test/00001_0011/input', path_original_images='./data/test/00001_0011/', write_images=False)
+
+ssim_cnn_sum += ssim_cnn * num_images; psnr_cnn_sum += psnr_cnn * num_images;
+ssim_standard_sum += ssim_standard * num_images; psnr_standard_sum += psnr_standard * num_images; 
+num_im_all += num_images 
+
+tf.reset_default_graph() 
+
+ssim_cnn, psnr_cnn, ssim_standard, psnr_standard, num_images= predict(path_images='./data/test/00001_0007/input', path_original_images='./data/test/00001_0007/', write_images=False)
+
+ssim_cnn_sum += ssim_cnn * num_images; psnr_cnn_sum += psnr_cnn * num_images;
+ssim_standard_sum += ssim_standard * num_images; psnr_standard_sum += psnr_standard * num_images; 
+num_im_all += num_images 
+
+tf.reset_default_graph() 
+
+print('standard --- psnr = {} ssim = {}'.format(psnr_standard_sum/num_im_all, ssim_standard_sum/num_im_all)) 
+print('cnn --- psnr = {} ssim = {}'.format(psnr_cnn_sum/num_im_all, ssim_cnn_sum/num_im_all))  
