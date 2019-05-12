@@ -8,7 +8,7 @@ def predict(downscaled_image, original_image, checkpoint):
  
     # network for original image
     config = tf.ConfigProto(
-            device_count = {'GPU': 1}
+            device_count = {'GPU': 0}
         ) 
     
     sess_or = tf.Session(config=config)
@@ -38,16 +38,7 @@ def predict(downscaled_image, original_image, checkpoint):
         # flip 0 
         res = sess_or.run(output_or, {input_or: [flip_image(image)]})[0]
         out_images.append(reverse_flip_image(res))
-        
-        # original 90
-        rot90_image = rotate_image_90(image)
-        res = sess_tr.run(output_tr, {input_tr: [rot90_image]})[0]
-        out_images.append(reverse_rotate_image_90(res)) 
-        
-        # flip 90 
-        res = sess_tr.run(output_tr, {input_tr: [flip_image(rot90_image)]})[0]
-        out_images.append(reverse_rotate_image_90(reverse_flip_image(res)))   
-
+         
         # original 180
         rot180_image = rotate_image_180(image)
         res = sess_or.run(output_or, {input_or: [rot180_image]})[0]
@@ -56,22 +47,14 @@ def predict(downscaled_image, original_image, checkpoint):
         # flip 180 
         res = sess_or.run(output_or, {input_or: [flip_image(rot180_image)]})[0]
         out_images.append(reverse_rotate_image_180(reverse_flip_image(res)))          
-        
-        # original 270
-        rot270_image = rotate_image_270(image)
-        res = sess_tr.run(output_tr, {input_tr: [rot270_image]})[0]
-        out_images.append(reverse_rotate_image_270(res)) 
-        
-        # flip 270 
-        res = sess_tr.run(output_tr, {input_tr: [flip_image(rot270_image)]})[0]
-        out_images.append(reverse_rotate_image_270(reverse_flip_image(res))) 
-        
+       
         if use_mean:
             cnn_output.append(np.round(np.mean(np.array(out_images), axis=0)))
         else:
             cnn_output.append(np.round(np.median(np.array(out_images), axis=0)))
         
     cnn_output = np.array(cnn_output)
+    cnn_output = np.transpose(cnn_output, [2, 0, 1, 3])  
     ssim_cnn, psnr_cnn = compute_ssim_psnr_batch(cnn_output, original_image) 
  
     return ssim_cnn, psnr_cnn
@@ -86,19 +69,19 @@ def compute_performance_indeces(test_images_gt, test_images, checkpoint):
         ssim_cnn, psnr_cnn = predict(test_images[index], test_images_gt[index], checkpoint)
         tf.reset_default_graph()
         ssim_cnn_sum += ssim_cnn; psnr_cnn_sum += psnr_cnn  
-        num_images += test_images[index].shape[0]
+        num_images += test_images_gt[index].shape[0]
       
     print('cnn {} --- psnr = {} ssim = {}'.format(test_path, psnr_cnn_sum/num_images, ssim_cnn_sum/num_images))
 
 def read_images(test_path):
 
-    test_images_gt = read_all_directory_images_from_directory_test(test_path)
-    test_images = read_all_directory_images_from_directory_test(test_path, add_to_path='input')
+    test_images_gt = read_all_directory_images_from_directory_test(test_path, 'original')
+    test_images = read_all_directory_images_from_directory_test(test_path, add_to_path='input_')
     
     return test_images_gt, test_images
     
-# checkpoint = tf.train.latest_checkpoint(params.folder_data)    
-checkpoint = './data_ckpt/model.ckpt128'
+checkpoint = tf.train.latest_checkpoint(params.folder_data)    
+# checkpoint = './data_ckpt/model.ckpt128'
 use_mean = True
 
 test_path = './data/test'  

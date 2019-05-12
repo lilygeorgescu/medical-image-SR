@@ -97,7 +97,7 @@ eval_images_gt, eval_images = read_images(eval_path)
 # compute_performance_indeces(eval_path, eval_images, eval_images_gt, checkpoint)  
 
 
-for i in range(95, 110):
+for i in range(110, 130):
     checkpoint = os.path.join(params.folder_data, 'model.ckpt%d' % i)
     
     compute_performance_indeces(test_path, test_images_gt, test_images, checkpoint)

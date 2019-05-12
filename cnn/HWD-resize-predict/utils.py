@@ -125,7 +125,7 @@ def read_all_directory_images_from_directory_test(directory_path, add_to_path=No
         files = glob.glob(images_path)
         num_images = len(files)
         print('There are {} images in {}'.format(num_images, images_path))
-        # read the first image to get the size of the images 
+        # read the first image to get the size of the images
         image = cv.imread(files[0], cv.IMREAD_GRAYSCALE)
         print('The size of the first image is {}'.format(image.shape))
         
@@ -299,11 +299,12 @@ def resize_depth_3d_image_standard(images, new_depth, height, width, interpolati
     '''
         Resize the depth of the 3d image by taking every coord as a depth row and resizing it.
     '''
-    resized_3d_images = np.zeros((new_depth, height, width, images.shape[3]))       
+    resized_3d_images = np.zeros((new_depth, height, width, images.shape[3]))  
+     
     for y in range(height):
         for x in range(width):
             depth_row = images[:, y, x]
-            resized_depth_row = cv.resize(depth_row, (1, new_depth), interpolation = interpolation_method)
+            resized_depth_row = cv.resize(depth_row, (1, new_depth), interpolation = interpolation_method) 
             resized_3d_images[:, y, x, 0] = resized_depth_row.ravel()
             
     if(SHOW_IMAGES):    
@@ -314,7 +315,15 @@ def resize_depth_3d_image_standard(images, new_depth, height, width, interpolati
      
     return resized_3d_images
     
-def resize_3d_image_standard(images, new_depth, new_height, new_width, interpolation_method = cv.INTER_LINEAR): 
+def resize_3d_image_standard_inverse(images, new_depth, new_height, new_width, interpolation_method=cv.INTER_LINEAR):
+ 
+    resized_3d_images = resize_depth_3d_image_standard(images, new_depth, images.shape[1], images.shape[2], interpolation_method) 
+    resized_images = resize_height_width_3d_image_standard(images, new_height, new_width, interpolation_method)
+    
+       
+    return resized_images    
+    
+def resize_3d_image_standard(images, new_depth, new_height, new_width, interpolation_method=cv.INTER_LINEAR): 
      
     resized_images = resize_height_width_3d_image_standard(images, new_height, new_width, interpolation_method)
     resized_3d_images = resize_depth_3d_image_standard(resized_images, new_depth, new_height, new_width, interpolation_method)

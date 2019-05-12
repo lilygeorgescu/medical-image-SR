@@ -12,10 +12,11 @@ folder_base_name = '../cnn-3d/3d-images'
 # cv.INTER_LANCZOS4
 # cv.INTER_NEAREST
 interpolation_method = cv.INTER_LANCZOS4 
-num_epochs = 50
+num_epochs = 500
 LOSS = L1_LOSS
-learning_rate = 1e-4
-dim_patch = '_14_28' 
+learning_rate = 1e-2
+dim_patch = 192
+dim_depth = 32
 kernel_size = 5 
 image_ext = 'png'
 folder_data = './data_ckpt/'
@@ -25,10 +26,10 @@ tf_version = 1.02
 ckpt_name = 'model.ckpt'
 latest_ckpt_filename = 'latest_epoch_tested'
 
-# for network architecture to be the same everywhere
+# network architecture to be the same everywhere
 import networks as nets
-network_architecture = nets.SRCNN_late_upscaling_D
-
+network_architecture_H_W = nets.SRCNN_late_upscaling_H_W
+network_architecture_D = nets.SRCNN_late_upscaling_D
 
 def show_params():
 	print('\n\n\n\n')
@@ -41,8 +42,10 @@ def show_params():
 	print('num epochs = {} '.format(num_epochs))
 	print('loss = {} '.format(LOSS))
 	print('learning rate = {} '.format(learning_rate))
-	print('dim patch = {} '.format(dim_patch)) 
+	print('dim patch = {} '.format(dim_patch))
+	print('dim depth = {} '.format(dim_depth))
 	print('kernel size = {} '.format(kernel_size))
-	print('folder data size = {} '.format(folder_data)) 
-	print('num_channels  = {} '.format(num_channels))
+	print('folder data size = {} '.format(folder_data))
+	print('layers = {} '.format(layers))
+	print('num_channels = {} '.format(num_channels))
 	print('\n\n')

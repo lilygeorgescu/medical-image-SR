@@ -1,152 +1,116 @@
 import tensorflow as tf
 import numpy as np
-import cv2 as cv
-import random
-import math
-from sklearn.utils import shuffle
+import cv2 as cv 
+import params
+import utils
 import pdb
 import re
-import data_reader as reader
-import time
-import os
+import os 
 
+params.show_params()
 
-import networks as nets
-import utils
-import params
-
-def run_network(images, ground_truth, checkpoint_name):
-    '''
-        images, ground_truth are nd-arrays of size [batch_size(num_images=depth), heigth, width, num_channels]
-    '''  
-    
-    images = np.transpose(images, [1, 2, 0, 3])  
-    
-    tf.reset_default_graph()   
-    input_depth = tf.placeholder(tf.float32, (1, images.shape[1], images.shape[2], params.num_channels), name='input_depth')  
-    output = params.network_architecture_D(input_depth, params.kernel_size)   
-    
-    predicted = tf.placeholder(tf.float32, (ground_truth.shape[0], ground_truth.shape[1], ground_truth.shape[2], params.num_channels), name='predicted')
-    target = tf.placeholder(tf.float32, (ground_truth.shape[0], ground_truth.shape[1], ground_truth.shape[2], params.num_channels), name='target')
-    # loss computed based on the original 3d image and the 3d image  
-    if(params.LOSS == params.L1_LOSS):
-        loss = tf.reduce_mean(tf.abs(predicted - target)) 
-    if(params.LOSS == params.L2_LOSS):
-        loss = tf.reduce_mean(tf.square(predicted - target))
-        
-    # restore values
-    saver = tf.train.Saver()
-    
-    config = tf.ConfigProto(
+config = tf.ConfigProto(
         device_count = {'GPU': 1}
     ) 
-    with tf.Session(config=config) as sess:    
-        saver.restore(sess, checkpoint_name) 
-        output_h_w_d = np.zeros((ground_truth.shape[1], ground_truth.shape[2], ground_truth.shape[0], params.num_channels))  
-        for i in range(images.shape[0]): 
-            output_h_w_d[i] = sess.run(output, feed_dict={input_depth: [images[i]]})[0]   
+    
+def predict(downscaled_image, original_image, checkpoint):
+    scale_factor = params.scale   
+     
             
-        output_3d_resized = np.transpose(output_h_w_d, [2, 0, 1, 3])    
-        cost = sess.run(loss, feed_dict={predicted: output_3d_resized , target: ground_truth})     
-        ssim_batch, psnr_batch = utils.compute_ssim_psnr_batch(output_3d_resized, ground_truth) 
+    standard_resize = utils.resize_height_width_3d_image_standard(downscaled_image, int(downscaled_image.shape[1]), int(downscaled_image.shape[2])*scale_factor, interpolation_method = params.interpolation_method)
+    downscaled_image = downscaled_image 
+    
+    # cnn resize  
+    input = tf.placeholder(tf.float32, (1, downscaled_image.shape[1], downscaled_image.shape[2], params.num_channels), name='input')  
+    output = params.network_architecture(input) 
+     
+
+    with tf.Session(config=config) as sess:  
+        sess.run(tf.global_variables_initializer())
+        saver = tf.train.Saver()
+        print('restoring from ' + checkpoint)
+        saver.restore(sess, checkpoint)
+         
+        # step 1 - apply cnn on each resized image, maybe as a batch 
+        cnn_output = []
+        for image in downscaled_image: 
+            cnn_output.append(sess.run(output, feed_dict={input: [image]})[0])
+    
+        cnn_output = np.array(cnn_output)   
+        cnn_output = np.round(cnn_output) 
+        cnn_output[cnn_output > 255] = 255
+        
+        if use_original: 
+            cnn_output = np.transpose(cnn_output, [2, 0, 1, 3]) 
+            standard_resize = np.transpose(standard_resize, [2, 0, 1, 3]) 
           
-        return cost, ssim_batch, psnr_batch
-    
+        ssim_cnn, psnr_cnn = utils.compute_ssim_psnr_batch(cnn_output, original_image)
+        ssim_standard, psnr_standard = utils.compute_ssim_psnr_batch(standard_resize, original_image)
   
-  
-def eval(data_reader, checkpoint_name=tf.train.latest_checkpoint(params.folder_data)): 
-     
-    num_images = 0
-    cost = 0
-    ssim = 0
-    psnr = 0 
-    epoch = int(re.findall(r'\d+', checkpoint_name)[0])
-    
-    # for every nd-array in the list
-    for i in range(data_reader.num_eval_images):  
-        images = data_reader.eval_images[i]
-        ground_truth = data_reader.eval_images_gt[i]
-        num_images += ground_truth.shape[0]
-        loss, ssim_batch, psnr_batch = run_network(images, ground_truth, checkpoint_name)
-        cost += loss * ground_truth.shape[0]
-        ssim += ssim_batch
-        psnr += psnr_batch   
-    print(ssim, psnr, num_images)       
+        return ssim_cnn, psnr_cnn, ssim_standard, psnr_standard 
 
-    tf.summary.scalar('loss', cost/num_images)  
-    tf.summary.scalar('ssim', ssim/num_images)  
-    tf.summary.scalar('psnr', psnr/num_images)  
-    merged = tf.summary.merge_all()
-    config = tf.ConfigProto(
-        device_count = {'GPU': 0}
-    ) 
-    with tf.Session(config=config) as sess:
-        writer = tf.summary.FileWriter('eval.log')
-        merged_ = sess.run(merged)
-        writer.add_summary(merged_, epoch)    
+def read_images(test_path):
+
+    if use_original:
+        add_to_path = 'original'
+    else:
+        add_to_path = 'transposed'
         
-    print('eval---epoch: {} loss: {} ssim: {} psnr: {} '.format(epoch, cost/num_images, ssim/num_images, psnr/num_images))
-     
+    test_images_gt = utils.read_all_directory_images_from_directory_test(test_path, add_to_path=add_to_path)
+    test_images = utils.read_all_directory_images_from_directory_test(test_path, add_to_path='input_')
     
-def test(data_reader, checkpoint_name=tf.train.latest_checkpoint(params.folder_data)): 
-     
-    num_images = 0
-    cost = 0
-    ssim = 0
-    psnr = 0 
-    epoch = int(re.findall(r'\d+', checkpoint_name)[0])
+    return test_images_gt, test_images
     
-    # for every nd-array in the list
-    for i in range(data_reader.num_test_images):  
-        images = data_reader.test_images[i]
-        ground_truth = data_reader.test_images_gt[i] 
-        num_images += ground_truth.shape[0]
-        loss, ssim_batch, psnr_batch = run_network(images, ground_truth, checkpoint_name)
-        cost += loss * ground_truth.shape[0]
-        ssim += ssim_batch
-        psnr += psnr_batch
-    print(ssim_batch, psnr_batch, num_images)   
-    tf.summary.scalar('loss', cost/num_images)  
-    tf.summary.scalar('ssim', ssim/num_images)  
-    tf.summary.scalar('psnr', psnr/num_images)  
-    merged = tf.summary.merge_all()
-    config = tf.ConfigProto(
-        device_count = {'GPU': 0}
-    ) 
-    with tf.Session(config=config) as sess:
-        writer = tf.summary.FileWriter('test.log')
-        merged_ = sess.run(merged)
-        writer.add_summary(merged_, epoch)    
+def compute_performance_indeces(test_path, test_images_gt, test_images, checkpoint):
+
+    num_images = 0 
+    ssim_cnn_sum = 0; psnr_cnn_sum = 0; ssim_standard_sum = 0; psnr_standard_sum = 0;  
+ 
+    for index in range(len(test_images)):
+          
+        if index == 2 and test_path.find('train') != -1:
+            continue # an image has odd size
+            
+        ssim_cnn, psnr_cnn, ssim_standard, psnr_standard = predict(test_images[index], test_images_gt[index], checkpoint)
+        tf.reset_default_graph()
+        ssim_cnn_sum += ssim_cnn; psnr_cnn_sum += psnr_cnn 
+        ssim_standard_sum += ssim_standard; psnr_standard_sum += psnr_standard 
+        num_images += test_images_gt[index].shape[0]
+     
+    print('standard {} --- psnr = {} ssim = {}'.format(test_path, psnr_standard_sum/num_images, ssim_standard_sum/num_images)) 
+    print('cnn {} --- psnr = {} ssim = {}'.format(test_path, psnr_cnn_sum/num_images, ssim_cnn_sum/num_images))
+    
+    if test_path.find('test') != -1:
+        tf.summary.scalar('psnr_standard', psnr_standard_sum/num_images) 
+        tf.summary.scalar('psnr_cnn', psnr_cnn_sum/num_images)  
+        tf.summary.scalar('ssim_standard', ssim_standard_sum/num_images)  
+        tf.summary.scalar('ssim_cnn', ssim_cnn_sum/num_images)  
+        merged = tf.summary.merge_all()
+         
+        writer = tf.summary.FileWriter('test.log') 
+            
+        epoch = re.findall(r'\d+', checkpoint)
+        epoch = int(epoch[0])
         
-    print('test---epoch: {} loss: {} ssim: {} psnr: {} '.format(epoch, cost/num_images, ssim/num_images, psnr/num_images))
-     
+        with tf.Session(config=config) as sess:
+            merged_ = sess.run(merged)
+            writer.add_summary(merged_, epoch)
+
+use_original = True        
+test_path = './data/test' 
+train_path = './data/train' 
+
+test_images_gt, test_images = read_images(train_path) 
+
+checkpoint = tf.train.latest_checkpoint(params.folder_data)  
+compute_performance_indeces(train_path, test_images_gt, test_images, checkpoint)
+exit()
+# compute_performance_indeces(eval_path, eval_images, eval_images_gt, checkpoint)  
 
 
-def run_eval_test(data_reader):
-    while(True):
-        latest_checkpoint = tf.train.latest_checkpoint(params.folder_data)
-        if(latest_checkpoint == None):
-            print('sleeping for 60 sec')
-            time.sleep(60)
-            continue
-        # check if it was already tested
-        if(os.path.isfile(params.latest_ckpt_filename)):
-            latest_checkpoint_tested = np.loadtxt(params.latest_ckpt_filename, dtype="str")
-            if(latest_checkpoint_tested == latest_checkpoint):
-                print('sleeping for 60 sec')
-                time.sleep(60)
-            else:
-                eval(data_reader, latest_checkpoint)
-                test(data_reader, latest_checkpoint)
-                np.savetxt(params.latest_ckpt_filename, [latest_checkpoint], delimiter=" ", fmt="%s")
-        else:
-                eval(data_reader, latest_checkpoint)
-                test(data_reader, latest_checkpoint)
-                np.savetxt(params.latest_ckpt_filename, [latest_checkpoint], delimiter=" ", fmt="%s")            
-                
+for i in range(10, 20):
+    checkpoint = os.path.join(params.folder_data, 'model.ckpt%d' % i)
     
-
-    
-data_reader = reader.DataReader('./data/train', './data/validation', './data/test', is_training=False)
-# eval(data_reader, checkpoint_name='./data_ckpt/model.ckpt49')
-run_eval_test(data_reader)    
+    compute_performance_indeces(test_path, test_images_gt, test_images, checkpoint)
+    # compute_performance_indeces(eval_path, eval_images_gt, eval_images, checkpoint)  
+ 

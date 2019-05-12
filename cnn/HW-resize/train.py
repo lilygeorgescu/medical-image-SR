@@ -38,13 +38,13 @@ starter_learning_rate = tf.placeholder(tf.float32, shape=[], name="learning_rate
 others = []                                    
 last_layer = []
 for var in tf.global_variables():
-    if(var.name.find('last_layer') != -1):
+    if(var.name.find('last_layer_5') != -1):
         last_layer.append(var)
     else:
         others.append(var) 
         
 opt1 = tf.train.AdamOptimizer(starter_learning_rate)
-opt2 = tf.train.AdamOptimizer(starter_learning_rate/2)
+opt2 = tf.train.AdamOptimizer(starter_learning_rate/10)
 grads = tf.gradients(loss, others + last_layer)
 grads1 = grads[:len(others)]
 grads2 = grads[len(others):]
