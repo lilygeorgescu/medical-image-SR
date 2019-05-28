@@ -19,7 +19,7 @@ def upscale(downscaled_image, checkpoint):
      
     # cnn resize  
     input = tf.placeholder(tf.float32, (1, downscaled_image.shape[1], downscaled_image.shape[2], params.num_channels), name='input')  
-    output_PS_2, output_x2, output_PS_4, output = params.network_architecture(input) 
+    _, output = params.network_architecture(input) 
      
 
     with tf.Session(config=config) as sess:  
@@ -44,7 +44,7 @@ def predict(downscaled_image, original_image, checkpoint):
      
             
     standard_resize = utils.resize_height_width_3d_image_standard(downscaled_image, int(original_image.shape[1]), int(original_image.shape[2]), interpolation_method = params.interpolation_method)
-    num_iters = 1 #int(np.log2(scale))
+    num_iters = int(np.log2(scale))
     
     for iter in range(num_iters):
          downscaled_image = upscale(downscaled_image, checkpoint)
@@ -93,15 +93,15 @@ def compute_performance_indeces(test_path, test_images_gt, test_images, checkpoi
         
 test_path = './data/test' 
 eval_path = './data/train'
-scale = 4
+scale = 2
 
 test_images_gt, test_images = read_images(test_path)  
-checkpoint = tf.train.latest_checkpoint(params.folder_data)  
+# checkpoint = tf.train.latest_checkpoint(params.folder_data)  
 # checkpoint = os.path.join(params.folder_data, 'model.ckpt%d' % 35)
 # compute_performance_indeces(eval_path, test_images_gt, test_images, checkpoint, write_to_summary=False) 
 # exit()
 
-for i in range(0, 6):
+for i in range(18, 22):
     checkpoint = os.path.join(params.folder_data, 'model.ckpt%d' % i)
     
     compute_performance_indeces(test_path, test_images_gt, test_images, checkpoint)

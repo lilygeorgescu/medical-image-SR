@@ -19,24 +19,17 @@ params.show_params()
 data_reader = reader.DataReader('./data/train', './data/validation', './data/test')
    	 
 # training 
-batch_size = 128 
-input = tf.placeholder(tf.float32, (batch_size, data_reader.dim_patch_in_2,  data_reader.dim_patch_in_2, params.num_channels), name='input')
-target_2 = tf.placeholder(tf.float32, (batch_size, data_reader.dim_patch_in_4,  data_reader.dim_patch_in_4, params.num_channels), name='target_2')
-target_4 = tf.placeholder(tf.float32, (batch_size, data_reader.dim_patch_gt, data_reader.dim_patch_gt, params.num_channels), name='target_4')
+batch_size = 128
+stride = 0
+input = tf.placeholder(tf.float32, (batch_size, data_reader.dim_patch_in,  data_reader.dim_patch_in, params.num_channels), name='input')
+target = tf.placeholder(tf.float32, (batch_size, data_reader.dim_patch_gt - 2*stride, data_reader.dim_patch_gt - 2*stride, params.num_channels), name='target')
 
-output_PS_2, output_x2, output_PS_4, output_x4 = params.network_architecture(input)  
- 
+output_PS, output = params.network_architecture(input)  
+print('output shape is ', output.shape, target.shape) 
 if(params.LOSS == params.L1_LOSS):
-	loss = tf.reduce_mean(
-        tf.reduce_mean(tf.abs(output_PS_2 - target_2)) + 
-        tf.reduce_mean(tf.abs(output_x2 - target_2)) +
-        tf.reduce_mean(tf.abs(output_PS_4 - target_4)) + 
-        tf.reduce_mean(tf.abs(output_x4 - target_4))     
-        )
-    
-    
-# if(params.LOSS == params.L2_LOSS):
-	# loss = tf.reduce_mean(tf.reduce_mean(tf.square(output - target)) + tf.reduce_mean(tf.square(output_PS - target))- tf.reduce_mean(tf.image.ssim(output, target, 255))) 	
+	loss = tf.reduce_mean(tf.reduce_mean(tf.abs(output - output)) + tf.reduce_mean(tf.abs(output_PS - target)) - tf.reduce_mean(tf.image.ssim(output, target, 255)))
+if(params.LOSS == params.L2_LOSS):
+	loss = tf.reduce_mean(tf.reduce_mean(tf.square(output - target)) + tf.reduce_mean(tf.square(output_PS - target)) - tf.reduce_mean(tf.image.ssim(output, target, 255))) 	
 	 
 global_step = tf.Variable(0, trainable=False)
 lr = params.learning_rate 
@@ -45,7 +38,7 @@ starter_learning_rate = tf.placeholder(tf.float32, shape=[], name="learning_rate
 others = []                                    
 last_layer = []
 for var in tf.global_variables():
-    if(var.name.find('conv16') != -1):
+    if(var.name.find('last_layer') != -1):
         last_layer.append(var)
     else:
         others.append(var) 
@@ -95,10 +88,10 @@ for epoch in range(start_epoch, params.num_epochs):
 	ssim_epoch = 0 
 	psnr_epoch = 0 
 	for i in range(0, num_iterations): 
-		 input_2, input_4, target_  = data_reader.get_next_batch_train(i, batch_size) 
+		 input_, target_  = data_reader.get_next_batch_train(i, batch_size) 
 		 num_images += batch_size 
 		 # target_ = target_[:, stride:-stride, stride:-stride, :]
-		 cost, _, predicted_images = sess.run([loss, opt, output_x4], feed_dict={input: input_2 , target_2: input_4, target_4: target_, starter_learning_rate: lr})
+		 cost, _, predicted_images = sess.run([loss, opt, output], feed_dict={input: input_ , target: target_, starter_learning_rate: lr})
 		 print(predicted_images.min())
 		 print(predicted_images.max())  
 		 batch_loss += cost * batch_size  

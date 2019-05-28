@@ -58,31 +58,42 @@ def custom_initializer(shape_list, dtype, partition_info):
     
 def SRCNN_late_upscaling_H_W(im, reuse=False): 
       
-    output_1 = tf.layers.conv2d(im, filters=128, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv2d')	  
+    output_1 = tf.layers.conv2d(im, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv1')	  
     
     # residual block
-    output_2 = tf.layers.conv2d(output_1, filters=128, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv2d_1') 
-    output_3 = tf.layers.conv2d(output_2, filters=128, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv2d_2')
-    output_4 = tf.add(tf.multiply(output_1 , 1), output_3)
+    output_2 = tf.layers.conv2d(output_1, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv2') 
+    output_3 = tf.layers.conv2d(output_2, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv3')
+    output_4 = tf.add(tf.multiply(output_1 , 1), output_3) 
     
+    feature_map_for_ps = tf.layers.conv2d(output_4, filters=params.num_channels * (params.scale ** 2), kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv4')   
     
-    output = tf.layers.conv2d(output_4, filters=128, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv2d_3')
-    output = tf.layers.conv2d(output, filters=128, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv2d_4')     
+    output_PS_2 = PS_H_W(feature_map_for_ps, params.scale)  
+    
+    output_5 = tf.layers.conv2d(output_PS_2, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='conv5', reuse=reuse)
+    output_6 = tf.layers.conv2d(output_5, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='conv6', reuse=reuse)
+    output_7 = tf.layers.conv2d(output_6, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='conv7', reuse=reuse)
+    output_8 = tf.add(tf.multiply(output_5, 1), output_7)
      
-    output = tf.add(tf.multiply(output_1, 1), output)
+    output_x2 = tf.layers.conv2d(output_8, filters=params.num_channels, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='conv8', reuse=reuse)
+    
+    # second scaling    
+    output_9 = tf.layers.conv2d(output_x2, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv9')	  
+    
+    # residual block
+    output_10 = tf.layers.conv2d(output_9, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv10') 
+    output_11 = tf.layers.conv2d(output_10, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv11')
+    output_12 = tf.add(tf.multiply(output_9 , 1), output_11) 
+    
+    feature_map_for_ps_x4 = tf.layers.conv2d(output_12, filters=params.num_channels * (params.scale ** 2), kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv12')
+
+    output_PS_4 = PS_H_W(feature_map_for_ps_x4, params.scale)      
+    
+    output_13 = tf.layers.conv2d(output_PS_4, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='conv13', reuse=reuse)
+    output_14 = tf.layers.conv2d(output_13, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='conv14', reuse=reuse)
+    output_15 = tf.layers.conv2d(output_14, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='conv15', reuse=reuse)
+    output_16 = tf.add(tf.multiply(output_13, 1), output_15)
      
+    output_x4 = tf.layers.conv2d(output_16, filters=params.num_channels, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='conv16', reuse=reuse)    
     
-    feature_map_for_ps = tf.layers.conv2d(output, filters=params.num_channels * (params.scale ** 2), kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='conv2d_5')   
-    
-    output_PS = PS_H_W(feature_map_for_ps, params.scale)  
-    
-    output_5 = tf.layers.conv2d(output_PS, filters=128, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='last_layer_1', reuse=reuse)
- 
-    
-    output_6 = tf.layers.conv2d(output_5, filters=128, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='last_layer_2', reuse=reuse)
-    output_7 = tf.layers.conv2d(output_6, filters=128, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='last_layer_3', reuse=reuse)
-    output_8 = tf.add(tf.multiply(output_5, 1), output_7, name='last_layer_4')
-     
-    output_9 = tf.layers.conv2d(output_8, filters=params.num_channels, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='last_layer_5', reuse=reuse)
       
-    return output_PS, output_9  
+    return output_PS_2, output_x2, output_PS_4, output_x4

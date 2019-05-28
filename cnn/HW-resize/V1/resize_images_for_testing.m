@@ -1,9 +1,9 @@
 % folder_name = 'data/validation';
-folder_name = '../data/test';
-% folder_name = 'data/train_';
+% folder_name = '../data/test';
+folder_name = '../data/train';
 files = dir(folder_name);
 files(1:2) = [];  
-resize_factor = 2;
+resize_factor = 4;
 input_folder_name = sprintf('input_%d', resize_factor);  
 for file_id = 1:numel(files)
    images_name = dir(strcat(folder_name, '/', files(file_id).name));
