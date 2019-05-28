@@ -6,19 +6,28 @@ import os
 import glob
 import numpy as np
 from skimage.measure import compare_ssim as ssim_sk
+from skimage.measure import compare_psnr as psnr_sk 
 import math 
 import pdb
 
 SHOW_IMAGES = False
- 
-def psnr(img1, img2):
-    img1 = np.uint8(img1)
-    img2 = np.uint8(img2)
-    mse = np.mean((img1 - img2) ** 2)
+
+def my_psnr(img1, img2):
+    img1 = np.float32(img1)
+    img2 = np.float32(img2)
+    mse = np.mean( (img1 - img2) ** 2 )
     if mse == 0:
         return 100
-    PIXEL_MAX = 255.0
+    PIXEL_MAX = 255.0 
     return 20 * math.log10(PIXEL_MAX / math.sqrt(mse))
+    
+def psnr(img1, img2): 
+    return my_psnr(img1, img2)  
+    
+    img1 = np.uint8(img1)
+    img2 = np.uint8(img2)
+    return psnr_sk(img1, img2)
+   
     
 def ssim(img1, img2):  
     img1 = np.uint8(img1)
@@ -28,7 +37,9 @@ def ssim(img1, img2):
     return ssim_sk(img1, img2)
     
 def compute_ssim_psnr_batch(predicted_images, ground_truth_images):
-    num_images = predicted_images.shape[0]
+    num_images = min(predicted_images.shape[0], ground_truth_images.shape[0])
+    if predicted_images.shape[0] != ground_truth_images.shape[0]:
+        print('predicted_images.shape[0] != ground_truth_images.shape[0]', predicted_images.shape[0], ground_truth_images.shape[0])
     ssim_sum = 0
     psnr_sum = 0 
     for i in range(num_images):

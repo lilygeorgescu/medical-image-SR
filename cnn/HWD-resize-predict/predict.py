@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 import tensorflow as tf
-from D import networks as nets_d
+
 from HW import networks as nets_hs
 import utils
 import params
@@ -40,6 +40,15 @@ def resize_h_w(downscaled_image, original_image=None):
             return cnn_output
         
 def resize_depth(downscaled_image, original_image=None):
+
+    if use_standard_d:
+        out = utils.resize_depth_3d_image_standard(downscaled_image, (downscaled_image.shape[0] * params.scale), downscaled_image.shape[1], downscaled_image.shape[2], cv.INTER_LINEAR) 
+        if original_image is not None:
+            ssim_cnn, psnr_cnn = utils.compute_ssim_psnr_batch(out, original_image)
+            return ssim_cnn, psnr_cnn
+        else:
+            return out
+    
     tf.reset_default_graph()
     scale_factor = params.scale    
     
@@ -105,7 +114,11 @@ def read_images(test_path):
     
 use_hw_d = True
 test_path = './data/test'  
-checkpoint_d = './D/data_ckpt/model.ckpt16'
+
+from D_v1_16 import networks as nets_d
+use_standard_d = True
+
+checkpoint_d = './D_v1_16/data_ckpt/model.ckpt90'
 checkpoint_h_w = './HW/data_ckpt/model.ckpt128'
 test_images_gt, test_images = read_images(test_path) 
 

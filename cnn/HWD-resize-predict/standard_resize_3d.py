@@ -4,13 +4,11 @@ import numpy as np
 import pdb
 
 def resize(downscaled_image, original_image, interpolation_method): 
+ 
+    standard_resize = utils.resize_3d_image_standard(downscaled_image, new_depth=original_image.shape[0], new_height=original_image.shape[1], new_width=original_image.shape[2], interpolation_method=interpolation_method) 
+      
+    ssim_standard, psnr_standard = utils.compute_ssim_psnr_batch(standard_resize, original_image) 
     
-    standard_resize = utils.resize_3d_image_standard_inverse(downscaled_image, new_depth=original_image.shape[0], new_height=original_image.shape[1], new_width=original_image.shape[2], interpolation_method=interpolation_method)
-    # downscaled_image = utils.resize_3d_image_standard(original_image, int(original_image.shape[0] / scale_factor), int(original_image.shape[1] / scale_factor), int(original_image.shape[2] / scale_factor))
-    # standard_resize = utils.resize_3d_image_standard_inverse(downscaled_image, int(original_image.shape[0]), int(original_image.shape[1]), int(original_image.shape[2]), interpolation_method=interpolation_method) 
-    
-    ssim_standard, psnr_standard = utils.compute_ssim_psnr_batch(standard_resize, original_image)
-    pdb.set_trace()
     return ssim_standard, psnr_standard 
  
     
@@ -21,27 +19,27 @@ def compute_performance_indeces(test_images_gt, test_images, interpolation_metho
     for index in range(len(test_images)): 
         ssim_standard, psnr_standard = resize(test_images[index], test_images_gt[index], interpolation_method) 
         ssim_standard_sum += ssim_standard; psnr_standard_sum += psnr_standard 
-        num_images += test_images_gt[index].shape[0]
-         
+        num_images += test_images_gt[index].shape[0] 
                 
     return psnr_standard_sum/num_images, ssim_standard_sum/num_images 
   
 def read_images(test_path): 
     if use_hw_d:
-        add_to_path = 'input_hw_d'
+        add_to_path = 'input_hw_d_%d' % scale_factor
     else:
         add_to_path = 'input'
         
     test_images_gt = utils.read_all_directory_images_from_directory_test(test_path, add_to_path='original')
-    test_images = utils.read_all_directory_images_from_directory_test(test_path, add_to_path='input_hw_d')
+    test_images = utils.read_all_directory_images_from_directory_test(test_path, add_to_path=add_to_path)
     
     return test_images_gt, test_images    
- 
-test_path = './data/test' 
-pdb.set_trace() 
+
+use_hw_d = True    
+test_path = './data/test'  
+scale_factor = 4
 test_images_gt, test_images = read_images(test_path)
-scale_factor = 2
-use_hw_d = True
+
+
     
 interpolation_methods= {'INTER_LINEAR': cv.INTER_LINEAR,
                         'INTER_CUBIC': cv.INTER_CUBIC,

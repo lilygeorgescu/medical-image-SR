@@ -3,20 +3,20 @@ folder_name = 'data/test';
 folder_output = 'data/test/';
 files = dir(folder_name);
 files(1:2) = [];
-resize_factor = 2;
-input_folder_name = 'input_hw_d';
+resize_factor = 4;
+input_folder_name = sprintf('input_hw_d_%d', resize_factor) ;
 
 for file_id = 1:numel(files)
     images_name = dir(strcat(folder_name, '/', files(file_id).name, '/original/'));
     images_name(1:2) = []; % delete . and ..
     folder_in = strcat(folder_output, '/', files(file_id).name, '/', input_folder_name);
     
-%     if ~exist(folder_in, 'dir')
-%         mkdir(folder_in)
-%     else
-%         rmdir(folder_in, 's')
-%         mkdir(folder_in)
-%     end
+    if ~exist(folder_in, 'dir')
+        mkdir(folder_in)
+    else
+        rmdir(folder_in, 's')
+        mkdir(folder_in)
+    end
     clear resize_d_images images_hw images
     
     for image_id = 1:numel(images_name)
@@ -47,6 +47,6 @@ for file_id = 1:numel(files)
     
     for image_idx = 1:size(resize_d_images, 1)
         image = squeeze(resize_d_images(image_idx, :, :)); 
-        imwrite(image, strcat(folder_in, '/', num2str(image_idx), '.png'));
+        imwrite(image, strcat(folder_in, '/', sprintf('%.4d', image_idx), '.png'));
     end 
 end

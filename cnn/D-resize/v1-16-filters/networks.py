@@ -56,33 +56,36 @@ def custom_initializer(shape_list, dtype, partition_info):
      
     return tf.ones(shape_list, dtype=dtype) * 0.000158
     
-def SRCNN_late_upscaling_D(im, reuse=False): 
+def SRCNN_late_upscaling_D(im, reuse=False, is_training=False): 
 
  	with tf.name_scope('depth_net') as scope:  
     
-            output_1 = tf.layers.conv2d(im, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='depth_net/conv2d')	  
+            output_1 = tf.layers.conv2d(im, filters=16, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='depth_net/conv2d')	  
      
         # residual block
-            output_2 = tf.layers.conv2d(output_1, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='depth_net/conv2d_1') 
-            output_3 = tf.layers.conv2d(output_2, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='depth_net/conv2d_2')
+            output_2 = tf.layers.conv2d(output_1, filters=16, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='depth_net/conv2d_1') 
+            output_3 = tf.layers.conv2d(output_2, filters=16, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='depth_net/conv2d_2')
             output_4 = tf.add(tf.multiply(output_1 , 1), output_3)
-        
-        
-            output = tf.layers.conv2d(output_4, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='depth_net/conv2d_3')
-            output = tf.layers.conv2d(output, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='depth_net/conv2d_4')     
+            if is_training:
+                output_4 = tf.nn.dropout(output_4, keep_prob=0.9)
+            output = tf.layers.conv2d(output_4, filters=16, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='depth_net/conv2d_3')
+            output = tf.layers.conv2d(output, filters=16, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='depth_net/conv2d_4')     
      
             output = tf.add(tf.multiply(output_1, 1), output)
-        
+            if is_training:
+                output = tf.nn.dropout(output, keep_prob=0.9)
+                
             feature_map_for_ps = tf.layers.conv2d(output, filters=params.num_channels * params.scale, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, reuse=reuse, name='depth_net/conv2d_5')  
         # print(feature_map_for_ps.shape , output_1.shape)
         
             output_PS = PS_D(feature_map_for_ps, params.scale)  
         
-            output_5 = tf.layers.conv2d(output_PS, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='depth_net/last_layer_1', reuse=reuse)
+            output_5 = tf.layers.conv2d(output_PS, filters=16, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='depth_net/last_layer_1', reuse=reuse)
          # residual block
-        
-            output_6 = tf.layers.conv2d(output_5, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='depth_net/last_layer_2', reuse=reuse)
-            output_7 = tf.layers.conv2d(output_6, filters=32, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='depth_net/last_layer_3', reuse=reuse)
+            if is_training:
+                output_5 = tf.nn.dropout(output_5, keep_prob=0.9)
+            output_6 = tf.layers.conv2d(output_5, filters=16, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='depth_net/last_layer_2', reuse=reuse)
+            output_7 = tf.layers.conv2d(output_6, filters=16, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='depth_net/last_layer_3', reuse=reuse)
             output_8 = tf.add(tf.multiply(output_5, 1), output_7, name='depth_net/last_layer_4')
         
             output_9 = tf.layers.conv2d(output_8, filters=params.num_channels, kernel_size=3, strides=1, padding='SAME', activation=tf.nn.relu, name='depth_net/last_layer_5', reuse=reuse)

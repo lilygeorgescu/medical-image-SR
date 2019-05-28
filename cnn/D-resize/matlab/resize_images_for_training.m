@@ -1,16 +1,17 @@
 folder_name = '../data/train';
+base_folder_in = '/original/';
 files = dir(folder_name);
 files(1:2) = []; % delete . and .. 
 % min dim 27 => max dim patch 26 -> 20 -> 14
 dim_patch_w = 14;
-dim_patch_h = 28;
-stride = 13;
+dim_patch_h = 14;
+stride = 10;
 resize_factor = 2;
-input_folder_name = sprintf('input_%d_%d', dim_patch_w, dim_patch_h);
-gt_folder_name =  sprintf('gt_%d_%d', dim_patch_w, dim_patch_h);
+input_folder_name = sprintf('input_orig_%d_%d', dim_patch_w, dim_patch_h);
+gt_folder_name =  sprintf('gt_orig_%d_%d', dim_patch_w, dim_patch_h);
 
 for file_id = 1:numel(files)
-   images_name = dir(strcat(folder_name, '/', files(file_id).name, '/transposed/'));
+   images_name = dir(strcat(folder_name, '/', files(file_id).name, base_folder_in));
    images_name(1:2) = []; % delete . and ..
    folder_in = strcat(folder_name, '/', files(file_id).name, '/', input_folder_name);
    folder_gt = strcat(folder_name, '/', files(file_id).name, '/', gt_folder_name);
@@ -35,7 +36,7 @@ for file_id = 1:numel(files)
        if(images_name(image_id).isdir == 1)
            continue
        end
-       image_name = strcat(folder_name, '/', files(file_id).name, '/transposed/', images_name(image_id).name); 
+       image_name = strcat(folder_name, '/', files(file_id).name, base_folder_in, images_name(image_id).name); 
        image = imread(image_name);  
        
        idx_image = extract_patch_save_images(image, dim_patch_w, dim_patch_h, stride, resize_factor, folder_in, folder_gt, idx_image);

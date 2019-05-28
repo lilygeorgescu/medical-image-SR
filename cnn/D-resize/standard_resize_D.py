@@ -6,11 +6,12 @@ import numpy as np
 
 def resize(downscaled_image, original_image, interpolation_method): 
     
-    standard_resize = utils.resize_height_width_3d_image_standard(downscaled_image, int(downscaled_image.shape[1]), int(downscaled_image.shape[2]*2), interpolation_method=interpolation_method)
-    
+    standard_resize = utils.resize_height_width_3d_image_standard(downscaled_image, int(downscaled_image.shape[1]), int(downscaled_image.shape[2]*scale), interpolation_method=interpolation_method)
+     
     if use_original: 
-        standard_resize = np.transpose(standard_resize, [2, 0, 1, 3])  
-    
+        # standard_resize = np.transpose(standard_resize, [2, 0, 1, 3])  
+        standard_resize = np.transpose(standard_resize, [2, 1, 0, 3])  
+     
     ssim_standard, psnr_standard = utils.compute_ssim_psnr_batch(standard_resize, original_image)
 
     return ssim_standard, psnr_standard 
@@ -23,7 +24,7 @@ def read_images(test_path):
         add_to_path = 'transposed'
         
     test_images_gt = utils.read_all_directory_images_from_directory_test(test_path, add_to_path=add_to_path)
-    test_images = utils.read_all_directory_images_from_directory_test(test_path, add_to_path='input_')
+    test_images = utils.read_all_directory_images_from_directory_test(test_path, add_to_path='input_2_1_x%d' % scale)
     
     return test_images_gt, test_images
      
@@ -45,23 +46,29 @@ interpolation_methods= {'INTER_LINEAR': cv.INTER_LINEAR,
                         'INTER_NEAREST': cv.INTER_NEAREST}
  
 test_path = './data/test' 
-
-use_original = False
+scale = 4
+use_original = True
 test_images_gt, test_images = read_images(test_path)
 
 for interpolation_method in interpolation_methods.keys():
     psnr, ssim = compute_performance_indeces(test_images_gt, test_images, interpolation_methods[interpolation_method])
     print('interpolation method %s has ssim %f psnr %f' % (interpolation_method, ssim, psnr))
     
-# tranposed images    
+# tranposed images x2
 # interpolation method INTER_LINEAR has ssim 0.864469 psnr 36.881867
 # interpolation method INTER_NEAREST has ssim 0.875036 psnr 37.078668
 # interpolation method INTER_CUBIC has ssim 0.885053 psnr 37.163100
 # interpolation method INTER_LANCZOS4 has ssim 0.888183 psnr 37.231696
 
-# original images
+# original images x2
 # interpolation method INTER_NEAREST has ssim 0.903308 psnr 34.100390
 # interpolation method INTER_LINEAR has ssim 0.897913 psnr 33.909730
 # interpolation method INTER_LANCZOS4 has ssim 0.912667 psnr 34.280864
 # interpolation method INTER_CUBIC has ssim 0.910502 psnr 34.196829
+    
+# x4 
+# interpolation method INTER_LINEAR has ssim 0.812111 psnr 26.742810 
+# interpolation method INTER_CUBIC has ssim 0.824901 psnr 27.201903 
+# interpolation method INTER_NEAREST has ssim 0.810961 psnr 26.230704 
+# interpolation method INTER_LANCZOS4 has ssim 0.826650 psnr 27.285459
     

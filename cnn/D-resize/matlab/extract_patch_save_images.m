@@ -10,7 +10,7 @@ function [idx_image] = extract_patch_save_images(image, dim_patch_w, dim_patch_h
             [lines, cols] = size(gt_patch);
             in_patch = imresize(imfilter(gt_patch, kernel), [lines, round(cols/resize_factor)]); 
             
-            if(max(in_patch(:)) < 10)
+            if(max(in_patch(:)) < 5)
                 continue;
             end
             idx_image = idx_image + 1;

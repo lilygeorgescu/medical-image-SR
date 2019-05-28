@@ -5,20 +5,19 @@ import params as params
 import os
 import glob
 import numpy as np
-from skimage.measure import compare_ssim as ssim_sk
+from skimage.measure import compare_ssim as ssim_sk 
+from skimage.measure import compare_psnr as psnr_sk 
+
 import math 
 import pdb
 
 SHOW_IMAGES = False
  
-def psnr(img1, img2):
+def psnr(img1, img2): 
     img1 = np.uint8(img1)
     img2 = np.uint8(img2)
-    mse = np.mean((img1 - img2) ** 2)
-    if mse == 0:
-        return 100
-    PIXEL_MAX = 255.0
-    return 20 * math.log10(PIXEL_MAX / math.sqrt(mse))
+    
+    return psnr_sk(img1, img2)
     
 def ssim(img1, img2):  
     img1 = np.uint8(img1)
@@ -315,7 +314,7 @@ def resize_depth_3d_image_standard(images, new_depth, height, width, interpolati
      
     return resized_3d_images
     
-def resize_3d_image_standard_inverse(images, new_depth, new_height, new_width, interpolation_method=cv.INTER_LINEAR):
+def resize_3d_image_standard_reverse(images, new_depth, new_height, new_width, interpolation_method=cv.INTER_LINEAR):
  
     resized_3d_images = resize_depth_3d_image_standard(images, new_depth, images.shape[1], images.shape[2], interpolation_method) 
     resized_images = resize_height_width_3d_image_standard(images, new_height, new_width, interpolation_method)
@@ -324,7 +323,7 @@ def resize_3d_image_standard_inverse(images, new_depth, new_height, new_width, i
     return resized_images    
     
 def resize_3d_image_standard(images, new_depth, new_height, new_width, interpolation_method=cv.INTER_LINEAR): 
-     
+    SHOW_IMAGES = True
     resized_images = resize_height_width_3d_image_standard(images, new_height, new_width, interpolation_method)
     resized_3d_images = resize_depth_3d_image_standard(resized_images, new_depth, new_height, new_width, interpolation_method)
        

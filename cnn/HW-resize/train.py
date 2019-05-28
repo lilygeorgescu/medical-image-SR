@@ -24,12 +24,12 @@ stride = 0
 input = tf.placeholder(tf.float32, (batch_size, data_reader.dim_patch_in,  data_reader.dim_patch_in, params.num_channels), name='input')
 target = tf.placeholder(tf.float32, (batch_size, data_reader.dim_patch_gt - 2*stride, data_reader.dim_patch_gt - 2*stride, params.num_channels), name='target')
 
-output = params.network_architecture(input)  
+output_PS, output = params.network_architecture(input)  
 print('output shape is ', output.shape, target.shape) 
 if(params.LOSS == params.L1_LOSS):
-	loss = tf.reduce_mean(tf.abs(output - target)) 
+	loss = tf.reduce_mean(tf.reduce_mean(tf.abs(output - output)) + tf.reduce_mean(tf.abs(output_PS - target)) - tf.reduce_mean(tf.image.ssim(output, target, 255)))
 if(params.LOSS == params.L2_LOSS):
-	loss = tf.reduce_mean(tf.square(output - target)) 	
+	loss = tf.reduce_mean(tf.reduce_mean(tf.square(output - target)) + tf.reduce_mean(tf.square(output_PS - target))- tf.reduce_mean(tf.image.ssim(output, target, 255))) 	
 	 
 global_step = tf.Variable(0, trainable=False)
 lr = params.learning_rate 
@@ -38,13 +38,13 @@ starter_learning_rate = tf.placeholder(tf.float32, shape=[], name="learning_rate
 others = []                                    
 last_layer = []
 for var in tf.global_variables():
-    if(var.name.find('last_layer_5') != -1):
+    if(var.name.find('last_layer') != -1):
         last_layer.append(var)
     else:
         others.append(var) 
         
 opt1 = tf.train.AdamOptimizer(starter_learning_rate)
-opt2 = tf.train.AdamOptimizer(starter_learning_rate/10)
+opt2 = tf.train.AdamOptimizer(starter_learning_rate)
 grads = tf.gradients(loss, others + last_layer)
 grads1 = grads[:len(others)]
 grads2 = grads[len(others):]

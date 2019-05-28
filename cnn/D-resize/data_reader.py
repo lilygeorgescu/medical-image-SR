@@ -14,11 +14,13 @@ class DataReader:
         self.rotation_degrees = [0, 180]
         self.SHOW_IMAGES = SHOW_IMAGES        
         if(is_training):
-            self.train_images_in = utils.read_all_patches_from_directory(train_path, 'input%s' % params.dim_patch)  
+            self.train_images_in = np.concatenate((utils.read_all_patches_from_directory(train_path, 'input%s' % params.dim_patch), utils.read_all_patches_from_directory(train_path, 'input%s' % params.dim_patch_2)))
+            print(self.train_images_in.shape)
             self.mean = 0 #np.mean(self.train_images_in)
             self.train_images_in = self.train_images_in - self.mean
             np.savetxt('mean.txt',[self.mean])
-            self.train_images_gt = utils.read_all_patches_from_directory(train_path, 'gt%s' % params.dim_patch)  
+            self.train_images_gt = np.concatenate((utils.read_all_patches_from_directory(train_path, 'gt%s' % params.dim_patch), utils.read_all_patches_from_directory(train_path, 'gt%s' % params.dim_patch_2)))
+            print(self.train_images_gt.shape)
             self.train_images_in, self.train_images_gt = shuffle(self.train_images_in, self.train_images_gt) 
             self.num_train_images = len(self.train_images_in)
             self.dim_patch_in_rows = self.train_images_in.shape[1] 

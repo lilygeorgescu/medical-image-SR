@@ -17,6 +17,7 @@ for file_id = 1:numel(files)
         rmdir(folder_in, 's')
         mkdir(folder_in)
     end
+    
     clear resize_d_images images
     for image_id = 1:numel(images_name)
         if(images_name(image_id).isdir == 1)
@@ -39,6 +40,6 @@ for file_id = 1:numel(files)
     for image_idx = 1:size(resize_d_images, 1)
         image = squeeze(resize_d_images(image_idx,:,:));
         image = imresize(image, 1/resize_factor);
-        imwrite(image, strcat(folder_in, '/', num2str(image_idx), '.png'));
+        imwrite(image, strcat(folder_in, '/', sprintf('%.4d', image_idx), '.png'));
     end 
 end
